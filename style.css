@@ -171,6 +171,8 @@ html, body {
   align-items: center;
   justify-content: flex-start;
   background: #0a0a0f;
+  background-size: cover;
+  background-position: center;
   overflow: hidden;
 }
 

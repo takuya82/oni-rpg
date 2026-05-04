@@ -463,11 +463,9 @@ const MapEngine = {
     const TS  = this.TILE;
     const md  = MAP_DATA[G.area];
 
-    if (!md) {
-      ctx.fillStyle = '#111';
-      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-      return;
-    }
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    if (!md) return;
 
     const g = md.data;
     const dirVec = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
@@ -506,19 +504,25 @@ const MapEngine = {
   },
 
   drawTile(ctx, px, py, tileType) {
+    const TS = this.TILE;
+    // フロアは透過して背景画像を見せる
+    if (tileType === T.FLOOR) return;
+    // エンカウントゾーンは半透明の霧を重ねる
+    if (tileType === T.ENCOUNTER) {
+      ctx.fillStyle = 'rgba(10,20,50,0.45)';
+      ctx.fillRect(px, py, TS, TS);
+      return;
+    }
     const sid = TILE_SPRITE[tileType] !== undefined ? TILE_SPRITE[tileType] : 0;
     const img = this.imgs[sid];
-    const TS  = this.TILE;
     if (img) {
       ctx.drawImage(img, px, py, TS, TS);
     } else {
       const colors = {};
-      colors[T.WALL]      = '#3a2a1a';
-      colors[T.FLOOR]     = '#c8a064';
-      colors[T.ENCOUNTER] = '#334466';
-      colors[T.WARP]      = '#887700';
-      colors[T.WATER]     = '#1a3a6a';
-      ctx.fillStyle = colors[tileType] || '#222';
+      colors[T.WALL]  = '#2a1a0a';
+      colors[T.WARP]  = '#887700';
+      colors[T.WATER] = '#1a3a6a';
+      ctx.fillStyle = colors[tileType] || '#111';
       ctx.fillRect(px, py, TS, TS);
     }
   },
@@ -581,6 +585,17 @@ function openMap() {
 }
 
 function updateMapHUD() {
+  // エリア背景画像をマップ画面にセット
+  const mapScreen = $('screen-map');
+  const bgSrc = BG_IMAGES[G.area];
+  if (bgSrc) {
+    mapScreen.style.backgroundImage = `url('${bgSrc}')`;
+    mapScreen.style.backgroundSize = 'cover';
+    mapScreen.style.backgroundPosition = 'center';
+  } else {
+    mapScreen.style.backgroundImage = '';
+  }
+
   const area = AREAS[G.area];
   const labelEl = $('map-area-label');
   if (labelEl && area) {
