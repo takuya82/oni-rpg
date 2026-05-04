@@ -1095,24 +1095,63 @@ function applyPlayerSkill(skill, char) {
 }
 
 function playerActionItem(invIdx) {
-  const actor = currentActor();
-  if (!actor || actor.type !== 'party') return;
-  const char = getActiveParty()[actor.idx];
+  const slot = G.inventory[invIdx];
+  if (!slot) return;
+  const item = ITEMS[slot.id];
+  if (!item) return;
+  showItemTargetMenu(invIdx);
+}
+
+function showItemTargetMenu(invIdx) {
   const slot = G.inventory[invIdx];
   if (!slot) return;
   const item = ITEMS[slot.id];
   if (!item) return;
 
-  hideSubMenu();
-  hideBattleActions();
+  const sub = $('battle-sub-menu');
+  sub.innerHTML = '';
+  sub.classList.remove('hidden');
 
-  const msgs = applyItem(item, char);
-  removeItem(slot.id, 1);
-  enqueueMsgs(msgs, () => {
-    renderBattleScreen();
-    if (checkBattleEnd()) return;
-    advanceTurn();
+  const header = document.createElement('div');
+  header.className = 'sub-menu-header';
+  header.textContent = `── ${item.name} — 誰に使う？ ──`;
+  sub.appendChild(header);
+
+  const targets = item.type === 'revive'
+    ? getActiveParty().filter(c => !c.isAlive)
+    : getActiveParty().filter(c => c.isAlive);
+
+  if (targets.length === 0) {
+    const p = document.createElement('div');
+    p.style.cssText = 'padding:8px;color:var(--text-dim);font-size:13px';
+    p.textContent = '対象がいない。';
+    sub.appendChild(p);
+  }
+
+  targets.forEach(target => {
+    const btn = document.createElement('button');
+    btn.className = 'sub-menu-item';
+    const hpPct = Math.floor((target.hp / target.maxHp) * 100);
+    btn.innerHTML = `<span>${target.emoji} ${target.name}</span><span style="font-size:11px;color:var(--text-dim)">HP ${target.hp}/${target.maxHp} (${hpPct}%)</span>`;
+    btn.onclick = () => {
+      hideSubMenu();
+      hideBattleActions();
+      const msgs = applyItem(item, target);
+      removeItem(slot.id, 1);
+      enqueueMsgs(msgs, () => {
+        renderBattleScreen();
+        if (checkBattleEnd()) return;
+        advanceTurn();
+      });
+    };
+    sub.appendChild(btn);
   });
+
+  const cancel = document.createElement('button');
+  cancel.className = 'sub-menu-cancel';
+  cancel.textContent = '← 戻る';
+  cancel.onclick = showItemMenu;
+  sub.appendChild(cancel);
 }
 
 function applyItem(item, target) {
@@ -1175,32 +1214,26 @@ function playerActionDefend() {
 }
 
 function playerActionRun() {
-  const area = AREAS[G.area];
-  if (area && (area.events || []).some(ev => EVENTS[ev] && EVENTS[ev].steps && EVENTS[ev].steps.some(s => s.type === 'battle'))) {
-    // ボス戦では逃走不可
-    const evIdx = (G.areaEventIdx[G.area] || 0) - 1;
-    const evId  = (area.events || [])[evIdx];
-    if (evId) {
-      const ev = EVENTS[evId];
-      const isBossEvent = ev && ev.steps.some(s => s.type === 'battle' && ENEMY_DEFS[s.enemyId] && ENEMY_DEFS[s.enemyId].isBoss);
-      if (isBossEvent) {
-        showMessage('ボスからは逃げられない！');
-        return;
-      }
-    }
+  // ボス戦では逃走不可（敵定義で直接判定）
+  if (Battle.enemies.some(e => e.isBoss)) {
+    showMessage('ボスからは逃げられない！');
+    return;
   }
-  // 逃走判定
+
   const aliveP = aliveParty();
   const maxSpd = aliveP.length > 0 ? Math.max(...aliveP.map(c => getEffectiveStat(c,'spd'))) : 1;
-  const enemySpd = Battle.enemies.filter(e => e.isAlive)[0];
-  const escapeRate = enemySpd ? clamp((maxSpd / enemySpd.spd) * 0.6, 0.2, 0.9) : 0.9;
+  const enemyAlive = Battle.enemies.find(e => e.isAlive);
+  const escapeRate = enemyAlive ? clamp((maxSpd / enemyAlive.spd) * 0.6, 0.2, 0.9) : 0.9;
+
+  hideBattleActions();
+  hideSubMenu();
+
   if (Math.random() < escapeRate) {
-    hideBattleActions();
+    Battle.phase = 'end';
     enqueueMsgs(['逃走した！'], () => {
       if (Battle.onDone) Battle.onDone();
     });
   } else {
-    hideBattleActions();
     enqueueMsgs(['逃走に失敗した！'], () => {
       advanceTurn();
     });
