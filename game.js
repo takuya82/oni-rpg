@@ -767,7 +767,17 @@ function processEventStep(step) {
 
 function setEventDialog(speaker, portrait, text) {
   $('event-speaker').textContent = speaker || '';
-  $('event-portrait').textContent = portrait || '';
+
+  const portraitEl = $('event-portrait');
+  const charId = SPEAKER_TO_CHAR[speaker];
+  const imgSrc = charId ? CHAR_IMAGES[charId] : null;
+  if (imgSrc) {
+    portraitEl.innerHTML = `<img class="event-portrait-img" src="${imgSrc}" alt="${speaker}">`;
+  } else {
+    portraitEl.innerHTML = '';
+    portraitEl.textContent = portrait || '';
+  }
+
   $('event-text').textContent = text || '';
   $('event-choices').classList.add('hidden');
   $('event-choices').innerHTML = '';
@@ -863,6 +873,17 @@ function startBattle(enemies, onDone) {
   getActiveParty().forEach(c => {
     c.statusEffects = c.statusEffects.filter(s => s.type !== 'stun');
   });
+
+  // エリアに応じた背景画像をセット
+  const battleEl = $('screen-battle');
+  const bgSrc = BG_IMAGES[G.area];
+  if (bgSrc) {
+    battleEl.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.65)), url('${bgSrc}')`;
+    battleEl.style.backgroundSize = 'cover';
+    battleEl.style.backgroundPosition = 'center';
+  } else {
+    battleEl.style.backgroundImage = '';
+  }
 
   showScreen('battle');
   renderBattleScreen();
@@ -1379,9 +1400,13 @@ function renderEnemyArea() {
       : (e.analyzed ? `<div class="enemy-hint">🔍 弱点: ${e.weakness || 'なし'}</div>` : '');
     const bossHtml = e.isBoss ? '<div class="boss-label">BOSS</div>' : '';
     const deadStyle = e.isAlive ? '' : 'opacity:0.2;filter:grayscale(1)';
+    const imgSrc = ENEMY_IMAGES[e.defId];
+    const spriteHtml = imgSrc
+      ? `<img class="enemy-sprite${e.isBoss ? ' boss-sprite' : ''}" src="${imgSrc}" alt="${e.name}" style="${deadStyle}" onerror="this.outerHTML='<div class=\\'enemy-emoji\\' style=\\'${deadStyle}\\'>${e.emoji}</div>'">`
+      : `<div class="enemy-emoji" style="${deadStyle}">${e.emoji}</div>`;
     div.innerHTML = `
       ${bossHtml}
-      <div class="enemy-emoji" style="${deadStyle}">${e.emoji}</div>
+      ${spriteHtml}
       <div class="enemy-name">${e.name}</div>
       <div class="enemy-hp-bar">
         <span class="bar-label hp">HP</span>

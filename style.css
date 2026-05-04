@@ -873,6 +873,27 @@ html, body {
 .inn-gold { font-size: 13px; color: var(--gold); }
 .inn-actions { display: flex; gap: 12px; }
 
+/* ===== GEMINI 画像 ===== */
+.enemy-sprite {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  transition: transform 0.1s, opacity 0.2s;
+}
+.enemy-sprite.boss-sprite {
+  width: 200px;
+  height: 200px;
+}
+.enemy-sprite.attack-anim { transform: scale(1.1); }
+
+.event-portrait-img {
+  max-height: 260px;
+  max-width: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 24px rgba(201,162,39,0.35));
+  border-radius: 4px;
+}
+
 /* ===== DAMAGE NUMBERS ===== */
 .dmg-popup {
   position: absolute;
