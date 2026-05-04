@@ -26,6 +26,39 @@
     <p class="version-text">Ver 1.0</p>
   </div>
 
+  <!-- ===== NAME ENTRY SCREEN ===== -->
+  <div id="screen-nameentry" class="screen">
+    <div class="nameentry-wrap">
+      <div class="nameentry-portrait">
+        <img src="assets/images/chars/player_field.png" alt="主人公" class="nameentry-char-img">
+      </div>
+      <div class="nameentry-content">
+        <p class="nameentry-label">── 主人公の名を刻め ──</p>
+        <input type="text" id="nameentry-input" class="nameentry-input" maxlength="6" placeholder="勇">
+        <div class="nameentry-presets">
+          <button class="preset-btn" data-name="勇">勇</button>
+          <button class="preset-btn" data-name="龍之介">龍之介</button>
+          <button class="preset-btn" data-name="月影">月影</button>
+          <button class="preset-btn" data-name="朱雀">朱雀</button>
+          <button class="preset-btn" data-name="天狐">天狐</button>
+        </div>
+        <button class="menu-btn nameentry-confirm" id="btn-nameentry-ok">決　定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PROLOGUE SCREEN ===== -->
+  <div id="screen-prologue" class="screen">
+    <div class="prologue-wrap">
+      <div id="prologue-bg" class="prologue-bg"></div>
+      <div class="prologue-text-area">
+        <div id="prologue-chapter" class="prologue-chapter"></div>
+        <div id="prologue-text" class="prologue-text"></div>
+      </div>
+      <div class="prologue-hint">▼ タップして続ける</div>
+    </div>
+  </div>
+
   <!-- ===== MAP SCREEN ===== -->
   <div id="screen-map" class="screen">
     <div class="map-topbar">
@@ -99,7 +132,7 @@
     <div class="gameover-wrap">
       <div class="gameover-emoji">💀</div>
       <h2>全 滅</h2>
-      <p>勇たちは倒れた…</p>
+      <p id="gameover-msg">勇たちは倒れた…</p>
       <button class="menu-btn" id="btn-gameover-title">タイトルへ</button>
     </div>
   </div>

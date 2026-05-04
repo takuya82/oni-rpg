@@ -472,20 +472,27 @@ const MapEngine = {
     const [ddx, ddy] = dirVec[this.player.dir] || [0, 1];
 
     // タイル描画
+    const now = Date.now();
     for (let ty = 0; ty < MAP_H; ty++) {
       for (let tx = 0; tx < MAP_W; tx++) {
         const tile = (g[ty] && g[ty][tx] !== undefined) ? g[ty][tx] : T.WALL;
         this.drawTile(ctx, tx*TS, ty*TS, tile);
         if (tile === T.WARP) {
-          ctx.fillStyle = 'rgba(255,215,0,0.4)';
+          const pulse = 0.25 + 0.2 * Math.sin(now / 400 + tx + ty);
+          const cx = tx*TS + TS/2, cy = ty*TS + TS/2;
+          const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, TS*0.45);
+          rg.addColorStop(0, `rgba(255,240,100,${Math.min(1, pulse + 0.2)})`);
+          rg.addColorStop(0.5, `rgba(255,215,0,${pulse})`);
+          rg.addColorStop(1, 'rgba(255,215,0,0)');
+          ctx.fillStyle = rg;
           ctx.fillRect(tx*TS, ty*TS, TS, TS);
         }
       }
     }
 
-    // NPC描画
+    // NPC描画（青い光球）
     (md.npcs||[]).forEach(npc => {
-      this.drawSprite(ctx, npc.x*TS, npc.y*TS, npc.spriteId);
+      this.drawNpcOrb(ctx, npc.x*TS, npc.y*TS, now, npc.name);
       const adjacent = (npc.x === this.player.x+ddx && npc.y === this.player.y+ddy);
       if (adjacent) {
         ctx.fillStyle = 'rgba(255,255,180,0.92)';
@@ -496,8 +503,8 @@ const MapEngine = {
       }
     });
 
-    // プレイヤー描画（tile_0085 赤い武者）
-    this.drawSprite(ctx, this.player.x*TS, this.player.y*TS, 85);
+    // プレイヤー描画（金色の光球）
+    this.drawPlayerOrb(ctx, this.player.x*TS, this.player.y*TS, now);
 
     // ミニHUD
     this.renderHUD(ctx);
@@ -505,26 +512,138 @@ const MapEngine = {
 
   drawTile(ctx, px, py, tileType) {
     const TS = this.TILE;
-    // フロアは透過して背景画像を見せる
-    if (tileType === T.FLOOR) return;
-    // エンカウントゾーンは半透明の霧を重ねる
+    if (tileType === T.WARP) return; // render()ループで処理
+
+    // 地形ごとのベースカラー
+    const baseColors = {
+      [T.FLOOR]:     '#c8a96e',
+      [T.WALL]:      '#3a2e20',
+      [T.ENCOUNTER]: '#4a6840',
+      [T.WATER]:     '#1e4870',
+    };
+    ctx.fillStyle = baseColors[tileType] || '#222';
+    ctx.fillRect(px, py, TS, TS);
+
+    // テクスチャ感を追加
+    if (tileType === T.FLOOR) {
+      // 土のランダムな粒（決定論的）
+      const seed = (px * 7 + py * 13) % 8;
+      if (seed < 3) {
+        ctx.fillStyle = 'rgba(0,0,0,0.08)';
+        ctx.fillRect(px + seed*4, py + (seed*3)%TS, 3, 2);
+      }
+      // 格子の薄い線
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fillRect(px, py, TS, 1);
+      ctx.fillRect(px, py, 1, TS);
+    }
+    if (tileType === T.WALL) {
+      // 石壁のモルタル風
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(px+2, py+2, TS-4, TS*0.45);
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(px, py+TS*0.5, TS, 1);
+      // ハイライト
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(px, py, TS, 2);
+    }
     if (tileType === T.ENCOUNTER) {
-      ctx.fillStyle = 'rgba(10,20,50,0.45)';
-      ctx.fillRect(px, py, TS, TS);
-      return;
+      // 草の筋
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      for (let i = 0; i < 3; i++) {
+        const gx = px + 4 + i*9;
+        ctx.fillRect(gx, py+TS*0.3, 2, TS*0.5);
+      }
     }
-    const sid = TILE_SPRITE[tileType] !== undefined ? TILE_SPRITE[tileType] : 0;
-    const img = this.imgs[sid];
-    if (img) {
-      ctx.drawImage(img, px, py, TS, TS);
+    if (tileType === T.WATER) {
+      // 水面の輝き
+      ctx.fillStyle = 'rgba(100,180,255,0.2)';
+      ctx.fillRect(px+2, py+4, TS*0.6, 3);
+    }
+  },
+
+  // フィールドスプライトキャッシュ
+  _fieldImgs: (() => {
+    const cache = {};
+    // プレイヤー
+    const p = new Image(); p.src = PLAYER_FIELD_IMAGE; cache['__player'] = p;
+    // NPC
+    for (const [name, src] of Object.entries(NPC_FIELD_IMAGES)) {
+      if (!cache[src]) { const i = new Image(); i.src = src; cache[src] = i; }
+    }
+    return cache;
+  })(),
+
+  // フィールドスプライト共通描画（左方向は水平反転）
+  _drawFieldSprite(ctx, px, py, img, dir, TS, labelText, labelColor) {
+    if (!img || !img.complete || !img.naturalWidth) return;
+
+    const DW = TS * 1.6;
+    const DH = DW * (img.naturalHeight / img.naturalWidth);
+    const cx = px + TS / 2;
+    const dy = py + TS - DH;   // タイル下端に足が揃う
+    const flipX = (dir === 'left');
+
+    ctx.save();
+
+    // 足元の丸影
+    const sh = ctx.createRadialGradient(cx, py+TS-3, 0, cx, py+TS-3, TS*0.55);
+    sh.addColorStop(0, 'rgba(0,0,0,0.45)');
+    sh.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sh;
+    ctx.beginPath();
+    ctx.ellipse(cx, py+TS-3, TS*0.5, TS*0.16, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // 反転処理
+    if (flipX) {
+      ctx.translate(cx * 2, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(img, cx - DW/2, dy, DW, DH);
+    ctx.restore();
+
+    // 名前ラベル
+    if (labelText) this._drawLabel(ctx, cx, py + TS + 2, labelText, labelColor, TS);
+  },
+
+  drawPlayerSprite(ctx, px, py, now) {
+    const TS  = this.TILE;
+    const img = this._fieldImgs['__player'];
+    this._drawFieldSprite(ctx, px, py, img, this.player.dir, TS, null, null);
+  },
+
+  drawNpcOrb(ctx, px, py, now, npcName) {
+    const TS  = this.TILE;
+    const src = NPC_FIELD_IMAGES[npcName];
+    const img = src ? this._fieldImgs[src] : null;
+    if (img && img.complete && img.naturalWidth) {
+      this._drawFieldSprite(ctx, px, py, img, 'down', TS, null, null);
     } else {
-      const colors = {};
-      colors[T.WALL]  = '#2a1a0a';
-      colors[T.WARP]  = '#887700';
-      colors[T.WATER] = '#1a3a6a';
-      ctx.fillStyle = colors[tileType] || '#111';
-      ctx.fillRect(px, py, TS, TS);
+      // 画像未ロード中: 小さい●で代替
+      ctx.save();
+      ctx.fillStyle = 'rgba(150,200,255,0.8)';
+      ctx.beginPath();
+      ctx.arc(px + TS/2, py + TS/2, TS*0.3, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
     }
+  },
+
+  _drawLabel(ctx, cx, ly, text, color, TS) {
+    const fs = Math.round(TS * 0.42);
+    ctx.save();
+    ctx.font = `bold ${fs}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillStyle = 'rgba(0,0,0,0.9)';
+    for (const [ox, oy] of [[-1,0],[1,0],[0,-1],[0,1]]) ctx.fillText(text, cx+ox, ly+oy);
+    ctx.fillStyle = color;
+    ctx.fillText(text, cx, ly);
+    ctx.restore();
+  },
+
+  drawPlayerOrb(ctx, px, py, now) {
+    this.drawPlayerSprite(ctx, px, py, now);
   },
 
   drawSprite(ctx, px, py, spriteId) {
@@ -585,16 +704,8 @@ function openMap() {
 }
 
 function updateMapHUD() {
-  // エリア背景画像をマップ画面にセット
-  const mapScreen = $('screen-map');
-  const bgSrc = BG_IMAGES[G.area];
-  if (bgSrc) {
-    mapScreen.style.backgroundImage = `url('${bgSrc}')`;
-    mapScreen.style.backgroundSize = 'cover';
-    mapScreen.style.backgroundPosition = 'center';
-  } else {
-    mapScreen.style.backgroundImage = '';
-  }
+  // マップ画面は背景画像なし（タイル描画で地形表現する）
+  $('screen-map').style.backgroundImage = '';
 
   const area = AREAS[G.area];
   const labelEl = $('map-area-label');
@@ -893,13 +1004,14 @@ function startBattle(enemies, onDone) {
   const battleEl = $('screen-battle');
   const bgSrc = BG_IMAGES[G.area];
   if (bgSrc) {
-    battleEl.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.65)), url('${bgSrc}')`;
+    battleEl.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.15),rgba(0,0,0,0.55)), url('${bgSrc}')`;
     battleEl.style.backgroundSize = 'cover';
     battleEl.style.backgroundPosition = 'center';
   } else {
     battleEl.style.backgroundImage = '';
   }
 
+  $('battle-message').textContent = '';
   showScreen('battle');
   renderBattleScreen();
   buildTurnOrder();
@@ -1398,6 +1510,8 @@ function endBattle(result) {
   } else {
     // ゲームオーバー
     enqueueMsgs(['全員が倒れた…'], () => {
+      const pName = (G.party && G.party[0]) ? G.party[0].name : '勇';
+      $('gameover-msg').textContent = `${pName}たちは倒れた…`;
       showScreen('gameover');
     });
   }
@@ -1435,26 +1549,87 @@ function renderBattleScreen() {
   renderBattleParty();
 }
 
+// 白背景除去済みキャンバスのキャッシュ
+const _enemyCanvasCache = {};
+
+function removeWhiteBg(img) {
+  try {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const cx = c.getContext('2d');
+    cx.drawImage(img, 0, 0);
+    const d = cx.getImageData(0, 0, c.width, c.height);
+    const px = d.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const r = px[i], g = px[i+1], b = px[i+2];
+      const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
+      const saturation = Math.max(r, g, b) - Math.min(r, g, b);
+      if (brightness > 180 && saturation < 50) {
+        px[i+3] = Math.max(0, Math.floor(px[i+3] * (1 - (brightness - 180) / 75)));
+      }
+    }
+    cx.putImageData(d, 0, 0);
+    return c.toDataURL();
+  } catch (e) {
+    return img.src;
+  }
+}
+
 function renderEnemyArea() {
   const cont = $('battle-enemy-area');
   cont.innerHTML = '';
+  const totalCount = Battle.enemies.filter(e => e).length;
+  const isSingle = totalCount === 1;
+  cont.style.flexWrap = isSingle ? 'nowrap' : 'wrap';
+  cont.style.gap      = isSingle ? '0' : '12px';
+
   Battle.enemies.forEach(e => {
     if (!e) return;
     const div = document.createElement('div');
     div.className = 'battle-enemy';
+
     const hpPct = e.maxHp > 0 ? (e.hp / e.maxHp) * 100 : 0;
     const hintHtml = e.analyzed && e.weaknessHint
       ? `<div class="enemy-hint">🔍 ${e.weaknessHint}</div>`
       : (e.analyzed ? `<div class="enemy-hint">🔍 弱点: ${e.weakness || 'なし'}</div>` : '');
     const bossHtml = e.isBoss ? '<div class="boss-label">BOSS</div>' : '';
-    const deadStyle = e.isAlive ? '' : 'opacity:0.2;filter:grayscale(1)';
+    const deadStyle = e.isAlive ? '' : 'opacity:0.25;filter:grayscale(1)';
+
+    // 単体:大きく / 複数:小さく並べる
+    const spriteSize = isSingle
+      ? (e.isBoss ? 460 : 360)
+      : (e.isBoss ? 200 : 160);
+
+    // ── スプライト（canvas経由で白背景除去）──
     const imgSrc = ENEMY_IMAGES[e.defId];
-    const spriteHtml = imgSrc
-      ? `<img class="enemy-sprite${e.isBoss ? ' boss-sprite' : ''}" src="${imgSrc}" alt="${e.name}" style="${deadStyle}" onerror="this.outerHTML='<div class=\\'enemy-emoji\\' style=\\'${deadStyle}\\'>${e.emoji}</div>'">`
-      : `<div class="enemy-emoji" style="${deadStyle}">${e.emoji}</div>`;
-    div.innerHTML = `
+    const spriteEl = document.createElement('div');
+    spriteEl.className = 'enemy-sprite-wrap' + (e.isBoss ? ' boss' : '');
+    spriteEl.style.cssText = deadStyle ? deadStyle.split(';').map(s=>s.trim()).join(';') : '';
+
+    if (imgSrc) {
+      const img = new Image();
+      img.onload = () => {
+        const cacheKey = e.defId;
+        if (!_enemyCanvasCache[cacheKey]) {
+          _enemyCanvasCache[cacheKey] = removeWhiteBg(img);
+        }
+        const processed = document.createElement('img');
+        processed.src = _enemyCanvasCache[cacheKey];
+        processed.style.cssText = `width:${spriteSize}px;height:${spriteSize}px;object-fit:contain;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.9)) drop-shadow(0 0 10px rgba(200,60,60,0.5));`;
+        if (!e.isAlive) { processed.style.opacity = '0.25'; processed.style.filter += ' grayscale(1)'; }
+        spriteEl.appendChild(processed);
+      };
+      img.onerror = () => {
+        spriteEl.innerHTML = `<div class="enemy-emoji" style="font-size:${spriteSize*0.4}px">${e.emoji}</div>`;
+      };
+      img.src = imgSrc;
+    } else {
+      spriteEl.innerHTML = `<div class="enemy-emoji" style="font-size:${spriteSize*0.4}px">${e.emoji}</div>`;
+    }
+
+    const infoEl = document.createElement('div');
+    infoEl.innerHTML = `
       ${bossHtml}
-      ${spriteHtml}
       <div class="enemy-name">${e.name}</div>
       <div class="enemy-hp-bar">
         <span class="bar-label hp">HP</span>
@@ -1463,6 +1638,8 @@ function renderEnemyArea() {
       </div>
       ${hintHtml}
     `;
+    div.appendChild(spriteEl);
+    div.appendChild(infoEl);
     cont.appendChild(div);
   });
 }
@@ -1977,21 +2154,113 @@ function showEnding(type, title) {
 }
 
 // ─────────────────────────────────────────────────────
+//  名前入力
+// ─────────────────────────────────────────────────────
+function showNameEntry() {
+  $('nameentry-input').value = '';
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+  showScreen('nameentry');
+  setTimeout(() => $('nameentry-input').focus(), 300);
+}
+
+// ─────────────────────────────────────────────────────
+//  プロローグ
+// ─────────────────────────────────────────────────────
+const PROLOGUE_PAGES = [
+  {
+    bg: 'burned_village',
+    chapter: '── 序章 ──',
+    text: '百年前、この地に鬼が現れた。\n\n炎は村を、山を、人の記憶を喰らい、\nただ鐘の音だけが夜に響いた。',
+  },
+  {
+    bg: 'mountain_path',
+    chapter: '── 序章 ──',
+    text: '呪いは今も生きている。\n\nその鐘を鳴らした者は、\n消えることのない怨念に縛られるという。',
+  },
+  {
+    bg: 'spirit_realm_gate',
+    chapter: '── 旅立ち ──',
+    text: null, // playerName を動的に埋める
+  },
+];
+
+let _prologuePage = 0;
+let _prologuePlayerName = '';
+
+function startPrologue(playerName) {
+  _prologuePage = 0;
+  _prologuePlayerName = playerName;
+  showScreen('prologue');
+  renderProloguePage();
+}
+
+function renderProloguePage() {
+  const page = PROLOGUE_PAGES[_prologuePage];
+  const bgEl = $('prologue-bg');
+  const bgSrc = BG_IMAGES[page.bg];
+  bgEl.style.backgroundImage = bgSrc ? `url('${bgSrc}')` : '';
+
+  $('prologue-chapter').textContent = page.chapter;
+
+  let text = page.text;
+  if (text === null) {
+    text = `そして今、${_prologuePlayerName}は\n故郷の焼け跡に立っていた。\n\n── 鬼哭の鐘を止めに行かなければならない。`;
+  }
+  $('prologue-text').textContent = text;
+}
+
+function advancePrologue() {
+  _prologuePage++;
+  if (_prologuePage >= PROLOGUE_PAGES.length) {
+    startNewGameAfterPrologue();
+  } else {
+    renderProloguePage();
+  }
+}
+
+function startNewGame(playerName) {
+  G = createInitialState();
+  G.party[0].name = playerName;
+  G.allChars['player'].name = playerName;
+  startPrologue(playerName);
+}
+
+function startNewGameAfterPrologue() {
+  G.areaEventIdx['burned_village'] = 0;
+  const startMD = MAP_DATA[G.area];
+  if (startMD && startMD.playerStart) {
+    MapEngine.player.x = startMD.playerStart.x;
+    MapEngine.player.y = startMD.playerStart.y;
+  }
+  openMap();
+}
+
+// ─────────────────────────────────────────────────────
 //  初期化
 // ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
 
   // タイトルボタン
-  $('btn-new-game').onclick = () => {
-    G = createInitialState();
-    G.areaEventIdx['burned_village'] = 0;
-    const startMD = MAP_DATA[G.area];
-    if (startMD && startMD.playerStart) {
-      MapEngine.player.x = startMD.playerStart.x;
-      MapEngine.player.y = startMD.playerStart.y;
-    }
-    openMap();
+  $('btn-new-game').onclick = () => showNameEntry();
+
+  // 名前入力プリセット
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.onclick = () => {
+      $('nameentry-input').value = btn.dataset.name;
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    };
+  });
+
+  // 名前確定
+  $('btn-nameentry-ok').onclick = () => {
+    const raw = $('nameentry-input').value.trim();
+    const playerName = raw || '勇';
+    startNewGame(playerName);
   };
+
+  // プロローグ：タップで次へ
+  $('screen-prologue').onclick = () => advancePrologue();
 
   $('btn-load-game').onclick = () => {
     for (let i = 1; i <= 3; i++) {
