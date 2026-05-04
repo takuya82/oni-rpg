@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>鬼哭の鐘</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="game">
+
+  <!-- ===== TITLE SCREEN ===== -->
+  <div id="screen-title" class="screen active">
+    <div class="title-art">
+      <div class="title-kanji">鬼哭</div>
+      <div class="title-kanji-sub">の鐘</div>
+    </div>
+    <p class="subtitle">── 百年の呪いを解く旅 ──</p>
+    <div class="title-menu">
+      <button class="menu-btn" id="btn-new-game">は じ め か ら</button>
+      <button class="menu-btn" id="btn-load-game">つ づ き か ら</button>
+    </div>
+    <p class="version-text">Ver 1.0</p>
+  </div>
+
+  <!-- ===== MAP SCREEN ===== -->
+  <div id="screen-map" class="screen">
+    <div class="map-topbar">
+      <span id="map-area-label" class="map-area-label">── マップ ──</span>
+      <div class="sp-gauge">
+        <span class="sp-label">霊力</span>
+        <div class="sp-bar-wrap"><div id="sp-bar" class="sp-bar"></div></div>
+        <span id="sp-text" class="sp-text"></span>
+      </div>
+    </div>
+    <canvas id="map-canvas"></canvas>
+    <div class="map-botbar">
+      <div class="map-hint">← → ↑ ↓ 移動 &nbsp;|&nbsp; スペース/決: 話す</div>
+      <div id="map-actions" class="map-actions-bar"></div>
+    </div>
+    <div class="dpad-wrap">
+      <div class="dpad">
+        <button class="dpad-btn" id="dpad-up">▲</button>
+        <div class="dpad-row">
+          <button class="dpad-btn" id="dpad-left">◀</button>
+          <button class="dpad-btn dpad-center" id="dpad-act">決</button>
+          <button class="dpad-btn" id="dpad-right">▶</button>
+        </div>
+        <button class="dpad-btn" id="dpad-down">▼</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== EVENT SCREEN ===== -->
+  <div id="screen-event" class="screen">
+    <div class="event-wrap">
+      <div class="event-portrait-area">
+        <div id="event-portrait" class="event-portrait"></div>
+      </div>
+      <div class="event-dialog">
+        <div id="event-speaker" class="event-speaker"></div>
+        <div id="event-text" class="event-text"></div>
+        <div id="event-choices" class="event-choices hidden"></div>
+        <div id="event-next-hint" class="event-next-hint">▼ クリックして続ける</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== BATTLE SCREEN ===== -->
+  <div id="screen-battle" class="screen">
+    <div class="battle-enemy-area" id="battle-enemy-area"></div>
+    <div class="battle-log" id="battle-log">
+      <div id="battle-message" class="battle-message"></div>
+    </div>
+    <div class="battle-party" id="battle-party"></div>
+    <div class="battle-actions" id="battle-actions"></div>
+    <div class="battle-sub-menu hidden" id="battle-sub-menu"></div>
+  </div>
+
+  <!-- ===== MENU SCREEN ===== -->
+  <div id="screen-menu" class="screen">
+    <div class="menu-wrap">
+      <div class="menu-tabs" id="menu-tabs">
+        <button class="tab-btn active" data-tab="status">状態</button>
+        <button class="tab-btn" data-tab="inventory">道具</button>
+        <button class="tab-btn" data-tab="equipment">装備</button>
+        <button class="tab-btn" data-tab="save">セーブ</button>
+      </div>
+      <div class="menu-body" id="menu-body"></div>
+      <button class="close-btn" id="btn-close-menu">× 閉じる</button>
+    </div>
+  </div>
+
+  <!-- ===== GAME OVER ===== -->
+  <div id="screen-gameover" class="screen">
+    <div class="gameover-wrap">
+      <div class="gameover-emoji">💀</div>
+      <h2>全 滅</h2>
+      <p>勇たちは倒れた…</p>
+      <button class="menu-btn" id="btn-gameover-title">タイトルへ</button>
+    </div>
+  </div>
+
+  <!-- ===== ENDING ===== -->
+  <div id="screen-ending" class="screen">
+    <div class="ending-wrap">
+      <div id="ending-subtitle" class="ending-subtitle"></div>
+      <h2 id="ending-title" class="ending-title"></h2>
+      <div id="ending-text" class="ending-text"></div>
+      <button class="menu-btn" id="btn-ending-title">タイトルへ</button>
+    </div>
+  </div>
+
+  <!-- ===== OVERLAYS ===== -->
+  <div id="overlay-levelup" class="overlay hidden">
+    <div class="levelup-box">
+      <div class="levelup-star">★</div>
+      <h3 id="levelup-title">レベルアップ！</h3>
+      <div id="levelup-details" class="levelup-details"></div>
+      <button class="ok-btn" id="btn-levelup-ok">OK</button>
+    </div>
+  </div>
+
+  <div id="overlay-message" class="overlay hidden">
+    <div class="msg-box">
+      <div id="overlay-msg-text"></div>
+      <button class="ok-btn" id="btn-overlay-ok">OK</button>
+    </div>
+  </div>
+
+  <div id="overlay-shop" class="overlay hidden">
+    <div class="shop-box">
+      <h3 id="shop-title">店</h3>
+      <div class="shop-gold">所持金: <span id="shop-gold">0</span> 両</div>
+      <div id="shop-list" class="shop-list"></div>
+      <button class="close-btn" id="btn-close-shop">閉じる</button>
+    </div>
+  </div>
+
+  <div id="overlay-inn" class="overlay hidden">
+    <div class="inn-box">
+      <div class="inn-emoji">🏮</div>
+      <h3>宿屋</h3>
+      <p>一泊 50両。全回復します。</p>
+      <div class="inn-gold">所持金: <span id="inn-gold">0</span> 両</div>
+      <div class="inn-actions">
+        <button class="ok-btn" id="btn-inn-rest">泊まる (50両)</button>
+        <button class="close-btn" id="btn-inn-leave">出る</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #game -->
+
+<script src="data.js"></script>
+<script src="maps.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
