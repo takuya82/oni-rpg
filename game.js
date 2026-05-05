@@ -1565,8 +1565,9 @@ function renderBattleScreen() {
   renderBattleParty();
 }
 
-// 白背景除去済みキャンバスのキャッシュ
+// 白背景除去済みキャンバスのキャッシュ（v2: 閾値変更でリセット）
 const _enemyCanvasCache = {};
+const _REMOVE_BG_VER = 'v2';
 
 function removeWhiteBg(img) {
   try {
@@ -1578,10 +1579,15 @@ function removeWhiteBg(img) {
     const px = d.data;
     for (let i = 0; i < px.length; i += 4) {
       const r = px[i], g = px[i+1], b = px[i+2];
-      const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
-      const saturation = Math.max(r, g, b) - Math.min(r, g, b);
-      if (brightness > 180 && saturation < 50) {
-        px[i+3] = Math.max(0, Math.floor(px[i+3] * (1 - (brightness - 180) / 75)));
+      const brightness  = r * 0.299 + g * 0.587 + b * 0.114;
+      const saturation  = Math.max(r, g, b) - Math.min(r, g, b);
+      if (brightness > 200 && saturation < 60) {
+        // 明るく彩度の低いピクセル → 完全透過
+        px[i+3] = 0;
+      } else if (brightness > 160 && saturation < 35) {
+        // フリンジ（境界のアンチエイリアス）→ 段階的に透過
+        const t = (brightness - 160) / 40;
+        px[i+3] = Math.floor(px[i+3] * (1 - t));
       }
     }
     cx.putImageData(d, 0, 0);
@@ -1629,7 +1635,7 @@ function renderEnemyArea() {
     if (imgSrc) {
       const img = new Image();
       img.onload = () => {
-        const cacheKey = e.defId;
+        const cacheKey = `${e.defId}_${_REMOVE_BG_VER}`;
         if (!_enemyCanvasCache[cacheKey]) {
           _enemyCanvasCache[cacheKey] = removeWhiteBg(img);
         }
