@@ -210,6 +210,18 @@ function showMessage(html, cb) {
   };
 }
 
+let _shopNoticeTimer = null;
+function showShopNotice(text) {
+  const el = $('shop-notice');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add('visible');
+  if (_shopNoticeTimer) clearTimeout(_shopNoticeTimer);
+  _shopNoticeTimer = setTimeout(() => {
+    el.classList.remove('visible');
+  }, 1800);
+}
+
 // ─────────────────────────────────────────────────────
 //  レベルシステム
 // ─────────────────────────────────────────────────────
@@ -1056,7 +1068,12 @@ function startBattle(enemies, onDone) {
   showScreen('battle');
   renderBattleScreen();
   buildTurnOrder();
-  setTimeout(() => processTurnStart(), 300);
+  const introMsg = bossEnemy && ENEMY_DEFS[bossEnemy.defId] && ENEMY_DEFS[bossEnemy.defId].introMessage;
+  if (introMsg) {
+    setTimeout(() => enqueueMsgs([introMsg], () => processTurnStart()), 300);
+  } else {
+    setTimeout(() => processTurnStart(), 300);
+  }
 }
 
 function buildTurnOrder() {
@@ -1565,7 +1582,6 @@ function checkBattleEnd() {
 function endBattle(result) {
   Battle.phase = 'end';
   if (result === 'win') {
-    const msgs = [];
     // 報酬計算
     let totalExp  = 0;
     let totalGold = 0;
@@ -1582,15 +1598,16 @@ function endBattle(result) {
     G.gold += totalGold;
     drops.forEach(id => addItem(id, 1));
 
-    let rewardMsg = `勝利！\n${totalExp} EXP　${totalGold} 両獲得！`;
-    if (drops.length > 0) {
-      rewardMsg += `\n${drops.map(id => ITEMS[id] ? ITEMS[id].name : id).join(', ')} を手に入れた！`;
-    }
-    msgs.push(rewardMsg);
-
     const lvUps = gainExp(totalExp);
-    enqueueMsgs(msgs, () => {
-      renderBattleScreen();
+    let rewardHtml = `<div class="reward-title">⚔ 勝　利 ⚔</div>`;
+    rewardHtml += `<div class="reward-row">獲得経験値： <b>${totalExp}</b> EXP</div>`;
+    rewardHtml += `<div class="reward-row">獲得両： <b>${totalGold}</b> 両</div>`;
+    if (drops.length > 0) {
+      const dropNames = drops.map(id => ITEMS[id] ? ITEMS[id].name : id).join('、');
+      rewardHtml += `<div class="reward-row reward-drop">入手アイテム： ${dropNames}</div>`;
+    }
+    renderBattleScreen();
+    showMessage(rewardHtml, () => {
       showLevelUpsAndThen(lvUps, () => {
         if (Battle.onDone) Battle.onDone();
       });
@@ -1921,7 +1938,7 @@ function openShop(shopId) {
       <div class="shop-item-price">${item.price} 両</div>
     `;
     div.onclick = () => {
-      if (G.gold < item.price) { showMessage('両が足りない！'); return; }
+      if (G.gold < item.price) { showShopNotice('両が足りない！'); return; }
       if (['weapon','armor','accessory'].includes(item.type)) {
         // 装備品は全員に選択させる
         buyEquipment(item);
@@ -1929,7 +1946,7 @@ function openShop(shopId) {
         G.gold -= item.price;
         addItem(itemId, 1);
         $('shop-gold').textContent = G.gold;
-        showMessage(`${item.name}を購入した！`);
+        showShopNotice(`${item.name} を購入しました（−${item.price}両）`);
       }
     };
     list.appendChild(div);
@@ -1954,7 +1971,7 @@ function equipItemTo(itemId, charId) {
   const item = ITEMS[itemId];
   const char = G.allChars[charId];
   if (!item || !char) return;
-  if (G.gold < item.price) { showMessage('両が足りない！'); return; }
+  if (G.gold < item.price) { showShopNotice('両が足りない！'); return; }
   G.gold -= item.price;
   if (char.equipment[item.slot]) {
     addItem(char.equipment[item.slot], 1); // 旧装備をインベントリに戻す
@@ -1962,6 +1979,7 @@ function equipItemTo(itemId, charId) {
   char.equipment[item.slot] = itemId;
   const shopGoldEl = $('shop-gold');
   if (shopGoldEl) shopGoldEl.textContent = G.gold;
+  showShopNotice(`${char.name}に「${item.name}」を装備しました（−${item.price}両）`);
 }
 
 function doUnequip(charId, slot) {
@@ -2274,12 +2292,12 @@ const PROLOGUE_PAGES = [
   {
     bg: 'burned_village',
     chapter: '── 序章 ──',
-    text: '百年前、この地に鬼が現れた。\n\n炎は村を、山を、人の記憶を喰らい、\nただ鐘の音だけが夜に響いた。',
+    text: '百年前、この地に呪いが生まれた。\n\n村人は鬼に変えられ、\n鐘の音と共に幽路へ封じられた。',
   },
   {
     bg: 'mountain_path',
     chapter: '── 序章 ──',
-    text: '呪いは今も生きている。\n\nその鐘を鳴らした者は、\n消えることのない怨念に縛られるという。',
+    text: '百年が過ぎ、封印は静かに弱まっていた。\n\n──そして今、鬼たちは再び\n現世に戻りはじめている。',
   },
   {
     bg: 'spirit_realm_gate',
@@ -2308,7 +2326,7 @@ function renderProloguePage() {
 
   let text = page.text;
   if (text === null) {
-    text = `そして今、${_prologuePlayerName}は\n故郷の焼け跡に立っていた。\n\n── 鬼哭の鐘を止めに行かなければならない。`;
+    text = `そして今、${_prologuePlayerName}は\n焼け跡となった故郷に立っていた。\n\n── 鬼哭の鐘の謎を、追わなければならない。`;
   }
   $('prologue-text').textContent = text;
 }

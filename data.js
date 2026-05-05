@@ -98,7 +98,6 @@ const ENEMY_SKILLS = {
   curse:      { name:'呪い',       type:'status', statusChance:{type:'poison',chance:65}, target:'single' },
   soulShatter:{ name:'魂砕き',     type:'atk', power:2.8,  target:'single' },
   kikokuBlast:{ name:'鬼哭炸裂',   type:'atk', power:3.5,  target:'all' },
-  msgReturn:  { name:'引き返せ',   type:'msg', message:'「引き返せ」と氷鬼将が言った…' },
 };
 
 // ── 敵定義 ──────────────────────────────────────────
@@ -118,7 +117,7 @@ const ENEMY_DEFS = {
   onryoOni:   { id:'onryoOni',   name:'怨霊鬼',   emoji:'💀', level:14, maxHp:175, atk:35, def:20, mag:44, spd:16, exp:255, gold:190, skills:['atkNormal','curse','darkWave'],    drops:[{id:'revival',chance:15}],      weakness:'holy', desc:'強烈な怨念を持つ霊。聖なる力が弱点' },
   // ボス
   honooOniSho:{ id:'honooOniSho',name:'焔鬼将',   emoji:'🔥', level:3,  maxHp:300, atk:26, def:16, mag:18, spd:10, exp:180, gold:250, skills:['atkNormal','fireFang','roar'],    drops:[{id:'fullElixir',chance:100}], weakness:'spirit', isBoss:true, desc:'炎をまとった鬼の将。霊撃も効く', weaknessHint:'玄海が呟く。「炎の鬼将…霊撃が通じそうだ」' },
-  kooruOniSho:{ id:'kooruOniSho',name:'氷鬼将',   emoji:'❄️', level:7,  maxHp:520, atk:36, def:26, mag:30, spd:12, exp:380, gold:450, skills:['atkNormal','iceBlast','frigidRoar','msgReturn'], drops:[{id:'spiritBlade',chance:100}], weakness:'fire', isBoss:true, desc:'氷をまとった鬼の将。炎が弱点', weaknessHint:'朱鷺が気づく。「氷の鬼…炎なら！烈火刃が効くはず」' },
+  kooruOniSho:{ id:'kooruOniSho',name:'氷鬼将',   emoji:'❄️', level:7,  maxHp:520, atk:36, def:26, mag:30, spd:12, exp:380, gold:450, skills:['atkNormal','iceBlast','frigidRoar'], drops:[{id:'spiritBlade',chance:100}], weakness:'fire', isBoss:true, desc:'氷をまとった鬼の将。炎が弱点', weaknessHint:'朱鷺が気づく。「氷の鬼…炎なら！烈火刃が効くはず」', introMessage:'氷鬼将が静かに告げた──「引き返せ」' },
   oniTaisho:  { id:'oniTaisho',  name:'鬼大将',   emoji:'👑', level:12, maxHp:850, atk:52, def:38, mag:42, spd:13, exp:650, gold:750, skills:['atkNormal','oniStrike','darkAura','massRoar'], drops:[{id:'spiritRobe',chance:100}], weakness:'spirit', isBoss:true, desc:'全鬼を率いる大将。霊の力が弱点', weaknessHint:'白が感じ取る。「この鬼…霊撃と幽波が効く」' },
   yuuOniO:    { id:'yuuOniO',    name:'幽鬼王',   emoji:'🌑', level:17, maxHp:1300,atk:68, def:48, mag:72, spd:16, exp:1100,gold:1100,skills:['atkNormal','soulDrain','darkExp','haunt'], drops:[{id:'bellFragment',chance:100}], weakness:'holy', isBoss:true, desc:'幽路を支配する鬼の王。聖なる力が弱点', weaknessHint:'玄海が叫ぶ。「幽路の王じゃ…鐘の力か、霊撃で打て！」' },
   kikokuShin: { id:'kikokuShin', name:'鬼哭の霊', emoji:'💫', level:22, maxHp:2100,atk:82, def:58, mag:95, spd:18, exp:2500,gold:0,    skills:['atkNormal','soulShatter','kikokuBlast','curse'], drops:[], weakness:'holy', isBoss:true, desc:'百年の怨念が凝縮した存在', weaknessHint:'白が叫ぶ。「鐘の力よ…kananoChikara！今こそ使って！」' },
@@ -154,8 +153,8 @@ const EVENTS = {
     { type:'narrator', text:'{player}は立ち上がり、周囲を見渡した。動くものは何もない。' },
     { type:'player',   text:'みんな…どこに行ったんだ。' },
     { type:'narrator', text:'その時、離れた場所で鬼の影が動いた。' },
-    { type:'narrator', text:'鬼は一言も発せず、残った神社を壊し始めた。' },
-    { type:'player',   text:'（なぜ、神社まで壊すんだ…）' },
+    { type:'narrator', text:'鬼は苦しげに呻きながら、残った神社の社を壊し始めた。' },
+    { type:'player',   text:'（なぜ神社を…？それに、あの呻き声は…）' },
   ]},
 
   ev_explore: { id:'ev_explore', steps:[
@@ -164,18 +163,22 @@ const EVENTS = {
     { type:'player',   text:'みんなどこへ行った…' },
     { type:'narrator', text:'廃屋の片隅に、幼い頃に母からもらった鈴が落ちていた。' },
     { type:'gain',     text:'鈴を拾った。形見にしよう。', item:'bellSuzuri' },
+    { type:'narrator', text:'幼い日、母が言っていた──' },
+    { type:'narrator', text:'「これは鬼から村を守る鈴。肌身離さず持っていなさい」' },
+    { type:'player',   text:'（…なぜ、母さんはそんなことを？）' },
     { type:'narrator', text:'その時、砂埃の中から大きな影が現れた。' },
   ]},
 
   ev_boss_ch1: { id:'ev_boss_ch1', steps:[
     { type:'narrator', text:'焔に包まれた鬼の将が、目の前に立ちはだかった。' },
-    { type:'enemy',    speaker:'焔鬼将', text:'…（無言のまま、{player}を見下ろしている）' },
+    { type:'enemy',    speaker:'焔鬼将', text:'…（鬼将は何かを言いかけ、しかし呻きに変わった）' },
     { type:'player',   text:'どけっ！' },
     { type:'battle',   enemyId:'honooOniSho' },
     { type:'narrator', text:'鬼将が倒れた。' },
     { type:'narrator', text:'その瞬間、鬼の目から何かが零れた気がした。' },
     { type:'narrator', text:'──涙？' },
-    { type:'player',   text:'（気のせいだ。逃げないと。）' },
+    { type:'narrator', text:'倒れた鬼将の手から、煤に汚れた小さな木札が落ちた。子供の名が刻まれている。' },
+    { type:'player',   text:'（…これは。気のせいだ。今は逃げないと。）' },
     { type:'warp',     areaId:'mountain_path' },
   ]},
 
@@ -216,6 +219,7 @@ const EVENTS = {
     { type:'companion', speaker:'玄海', emoji:'🔮', text:'お主らも鬼から逃げてきたか。' },
     { type:'player',    text:'あんたは？' },
     { type:'companion', speaker:'玄海', emoji:'🔮', text:'玄海じゃ。山伏をしておる。霊術なら使える。' },
+    { type:'companion', speaker:'玄海', emoji:'🔮', text:'若い頃、師から聞いた言い伝えがある。百年前のこの地のな…話せば長い、追々な。' },
     { type:'companion', speaker:'玄海', emoji:'🔮', text:'鬼を追うなら同行しよう。霊の知識が役に立つかもしれん。' },
     { type:'joinParty', charId:'genkai' },
     { type:'narrator',  text:'玄海が仲間になった！' },
@@ -241,8 +245,8 @@ const EVENTS = {
     { type:'companion', speaker:'白',   emoji:'🌙', text:'…鬼は、泣いていた。' },
     { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'え？' },
     { type:'companion', speaker:'白',   emoji:'🌙', text:'神社を壊しながら…泣いていた気がする。私には何か…見える。' },
-    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'何言ってるの。鬼が泣く？そんなわけないでしょ。' },
-    { type:'companion', speaker:'玄海', emoji:'🔮', text:'そうじゃな。気のせいじゃろう。先を急ごう。' },
+    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'…鬼が、泣く？そんなはずない…でしょ？だって鬼は、人を殺す存在よ。' },
+    { type:'companion', speaker:'玄海', emoji:'🔮', text:'うむ…気のせい、と言いたいところじゃが。白の見るものは、ワシらに見えぬものかもしれん。' },
   ]},
 
   ev_fortress_enter: { id:'ev_fortress_enter', steps:[
@@ -255,10 +259,10 @@ const EVENTS = {
     { type:'enemy',     speaker:'氷鬼将', text:'引き返せ。' },
     { type:'player',    text:'なんだと…？' },
     { type:'enemy',     speaker:'氷鬼将', text:'引き返せ。頼む。' },
-    { type:'companion', speaker:'玄海',   emoji:'🔮', text:'こいつら、こんな言葉まで使うとは。罠じゃ、罠じゃ！' },
+    { type:'companion', speaker:'玄海',   emoji:'🔮', text:'こいつら…言葉を使うのか…？言い伝えと違う。何かが、おかしい…' },
     { type:'battle',    enemyId:'kooruOniSho' },
     { type:'narrator',  text:'氷鬼将が倒れた。その手に、子供の髪飾りが握られていた。' },
-    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'この髪飾り…子供のものよね。盗んだのかしら。' },
+    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'子供の髪飾り…なぜ鬼が、こんなものを大切そうに…' },
     { type:'companion', speaker:'白',   emoji:'🌙', text:'（違う、と何かが囁く気がした）' },
     { type:'warp',      areaId:'mountain_ruins' },
   ]},
@@ -268,7 +272,7 @@ const EVENTS = {
     { type:'companion', speaker:'玄海', emoji:'🔮', text:'読んでみよう。「百年前、この地に疫病が流行り、恨みを持った術士が村人を鬼に変えた…」' },
     { type:'companion', speaker:'玄海', emoji:'🔮', text:'「鬼は神社の霊力で呪いを封じようとしたが、人間に壊された。鬼はさらに深い幽路へと」…。' },
     { type:'player',    text:'待て、神社の霊力で呪いを封じようとした？鬼が？' },
-    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'嘘よ。これは罠。鬼が書いた偽の記録だわ。' },
+    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'…嘘でしょ。鬼が、自分たちを封じようとしていた？そんなの…信じたくない。' },
     { type:'companion', speaker:'白',   emoji:'🌙', text:'（違う気がする…でも、言えない）' },
   ]},
 
@@ -299,7 +303,7 @@ const EVENTS = {
     { type:'enemy',     speaker:'鬼大将', text:'…進むな。これ以上は。' },
     { type:'player',    text:'どけ！呪いの根源を断ちに行く！' },
     { type:'enemy',     speaker:'鬼大将', text:'…根源を断てば、我々は…。' },
-    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'こいつら何を言ってるの！また罠でしょ。行くよ！' },
+    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'…なんで、こいつらこんなこと言うの。何が…本当なの？でも…進むしかない。' },
     { type:'battle',    enemyId:'oniTaisho' },
     { type:'narrator',  text:'鬼大将が倒れた。最後に一言、残した。' },
     { type:'enemy',     speaker:'鬼大将', text:'…頼む。終わりにして…くれ。' },
@@ -313,8 +317,11 @@ const EVENTS = {
   ]},
 
   ev_spirit_haku_truth: { id:'ev_spirit_haku_truth', steps:[
-    { type:'narrator',  text:'白が突然立ち止まった。' },
-    { type:'companion', speaker:'白',   emoji:'🌙', text:'思い出した。全部。' },
+    { type:'narrator',  text:'幽路の淡い光に照らされ、{player}の懐の鈴が、かすかに震えはじめた。' },
+    { type:'narrator',  text:'{player}は無意識に鈴を取り出した。鈴は淡く光っていた。' },
+    { type:'companion', speaker:'白',   emoji:'🌙', text:'…その鈴。{player}、見せて。' },
+    { type:'narrator',  text:'白がそっと鈴に触れた瞬間、彼女の表情が一変した。' },
+    { type:'companion', speaker:'白',   emoji:'🌙', text:'…思い出した。全部。' },
     { type:'player',    text:'白…？' },
     { type:'companion', speaker:'白',   emoji:'🌙', text:'私は…百年前の、あの村の人間よ。術士が村を呪った日、私は逃げようとして…ここで死んだ。' },
     { type:'companion', speaker:'白',   emoji:'🌙', text:'鬼になった人たちは…みんな私の知っている人たちよ。隣の家のおじさん、友達の家族、村長…。' },
