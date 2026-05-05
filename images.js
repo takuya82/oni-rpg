@@ -39,12 +39,29 @@ const BG_IMAGES = {
   bell_tower:        'assets/images/bg/bell_tower.png',
 };
 
+// ボス専用戦闘背景（通常エリア背景より優先して使用）
+const BOSS_BG_IMAGES = {
+  honooOniSho: 'assets/images/bg/boss_honooOniSho.png',
+  kooruOniSho: 'assets/images/bg/boss_kooruOniSho.png',
+  oniTaisho:   'assets/images/bg/boss_oniTaisho.png',
+  yuuOniO:     'assets/images/bg/boss_yuuOniO.png',
+};
+
 // イベント画面でのスピーカー名 → キャラID マッピング
 const SPEAKER_TO_CHAR = {
   '勇':  'player',
   '朱鷺': 'toki',
   '玄海': 'genkai',
   '白':  'haku',
+};
+
+// イベント画面でのボス/敵スピーカー名 → 敵ID マッピング
+const SPEAKER_TO_ENEMY = {
+  '焔鬼将':   'honooOniSho',
+  '氷鬼将':   'kooruOniSho',
+  '鬼大将':   'oniTaisho',
+  '幽鬼王':   'yuuOniO',
+  '鬼哭の霊': 'kikokuShin',
 };
 
 // フィールドマップ用スプライト

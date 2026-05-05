@@ -852,9 +852,16 @@ function processEventStep(step) {
     case 'player':
       setEventDialog('勇', '⚔️', step.text);
       break;
-    case 'companion':
+    case 'companion': {
+      const _cid = SPEAKER_TO_CHAR[step.speaker];
+      // キャラが未参加かつ、このイベント内でそのキャラが joinParty されない場合はスキップ
+      if (_cid && _cid !== 'player' && !G.partyIds.includes(_cid)) {
+        const _willJoin = Ev.steps.some(s => s.type === 'joinParty' && s.charId === _cid);
+        if (!_willJoin) { advanceEvent(); break; }
+      }
       setEventDialog(step.speaker, step.emoji || '👤', step.text);
       break;
+    }
     case 'enemy':
       setEventDialog(step.speaker, '👹', step.text);
       break;
@@ -895,8 +902,11 @@ function setEventDialog(speaker, portrait, text) {
   $('event-speaker').textContent = speaker || '';
 
   const portraitEl = $('event-portrait');
-  const charId = SPEAKER_TO_CHAR[speaker];
-  const imgSrc = charId ? CHAR_IMAGES[charId] : null;
+  const charId   = SPEAKER_TO_CHAR[speaker];
+  const enemyId  = SPEAKER_TO_ENEMY[speaker];
+  const imgSrc   = charId  ? CHAR_IMAGES[charId]
+                 : enemyId ? ENEMY_IMAGES[enemyId]
+                 : null;
   if (imgSrc) {
     portraitEl.innerHTML = `<img class="event-portrait-img" src="${imgSrc}" alt="${speaker}">`;
   } else {
@@ -1000,11 +1010,17 @@ function startBattle(enemies, onDone) {
     c.statusEffects = c.statusEffects.filter(s => s.type !== 'stun');
   });
 
-  // エリアに応じた背景画像をセット
+  // 背景画像をセット（ボス専用 > エリア共通）
   const battleEl = $('screen-battle');
-  const bgSrc = BG_IMAGES[G.area];
+  const bossEnemy = Battle.enemies.find(e => e && e.isBoss);
+  const bossBgSrc = bossEnemy ? BOSS_BG_IMAGES[bossEnemy.defId] : null;
+  const bgSrc = bossBgSrc || BG_IMAGES[G.area];
   if (bgSrc) {
-    battleEl.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.15),rgba(0,0,0,0.55)), url('${bgSrc}')`;
+    // ボス専用背景はドラマチックな構図なので暗転を最小限に
+    const overlay = bossBgSrc
+      ? 'linear-gradient(rgba(0,0,0,0.05),rgba(0,0,0,0.4))'
+      : 'linear-gradient(rgba(0,0,0,0.15),rgba(0,0,0,0.55))';
+    battleEl.style.backgroundImage = `${overlay}, url('${bgSrc}')`;
     battleEl.style.backgroundSize = 'cover';
     battleEl.style.backgroundPosition = 'center';
   } else {
@@ -1579,9 +1595,12 @@ function renderEnemyArea() {
   const cont = $('battle-enemy-area');
   cont.innerHTML = '';
   const totalCount = Battle.enemies.filter(e => e).length;
-  const isSingle = totalCount === 1;
-  cont.style.flexWrap = isSingle ? 'nowrap' : 'wrap';
-  cont.style.gap      = isSingle ? '0' : '12px';
+  const isSingle   = totalCount === 1;
+  const hasBoss    = Battle.enemies.some(e => e && e.isBoss);
+  cont.style.flexWrap   = isSingle ? 'nowrap' : 'wrap';
+  cont.style.gap        = isSingle ? '0' : '12px';
+  cont.style.alignItems = (hasBoss && isSingle) ? 'center' : 'flex-end';
+  cont.style.minHeight  = (hasBoss && isSingle) ? '300px' : '220px';
 
   Battle.enemies.forEach(e => {
     if (!e) return;
@@ -1595,10 +1614,11 @@ function renderEnemyArea() {
     const bossHtml = e.isBoss ? '<div class="boss-label">BOSS</div>' : '';
     const deadStyle = e.isAlive ? '' : 'opacity:0.25;filter:grayscale(1)';
 
-    // 単体:大きく / 複数:小さく並べる
+    // 単体:大きく / 複数:小さく並べる（画面幅に収まるよう上限を設ける）
+    const maxW = Math.max(200, Math.min(window.innerWidth, 420) - 32);
     const spriteSize = isSingle
-      ? (e.isBoss ? 460 : 360)
-      : (e.isBoss ? 200 : 160);
+      ? (e.isBoss ? Math.min(300, maxW) : Math.min(240, maxW))
+      : (e.isBoss ? 180 : 150);
 
     // ── スプライト（canvas経由で白背景除去）──
     const imgSrc = ENEMY_IMAGES[e.defId];
@@ -1615,7 +1635,7 @@ function renderEnemyArea() {
         }
         const processed = document.createElement('img');
         processed.src = _enemyCanvasCache[cacheKey];
-        processed.style.cssText = `width:${spriteSize}px;height:${spriteSize}px;object-fit:contain;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.9)) drop-shadow(0 0 10px rgba(200,60,60,0.5));`;
+        processed.style.cssText = `width:${spriteSize}px;height:${spriteSize}px;max-width:100%;object-fit:contain;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.9)) drop-shadow(0 0 10px rgba(200,60,60,0.5));`;
         if (!e.isAlive) { processed.style.opacity = '0.25'; processed.style.filter += ' grayscale(1)'; }
         spriteEl.appendChild(processed);
       };
