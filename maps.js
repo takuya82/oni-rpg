@@ -106,7 +106,7 @@ const MAP_DATA = {};
     data: m,
     playerStart: { x: 1, y: 7 },
     npcs: [
-      { x:10, y:3, spriteId:84, name:'山の精霊', event:'ev_meet_genkai_haku', seenFlag:'genkai_seen' },
+      { x:10, y:3, spriteId:84, name:'山の精霊', event:'ev_mountain_companions', seenFlag:'genkai_seen' },
     ],
     warps: [
       { x:0,  y:7,  toArea:'burned_village', toX:17, toY:13 },
