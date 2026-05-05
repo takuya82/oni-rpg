@@ -101,12 +101,12 @@ function _rndMonsterImg() {
 }
 const NPC_FIELD_IMAGES_MONSTER = {
   '鬼の番兵':     _rndMonsterImg(),
-  '炎鬼将':       _rndMonsterImg(),
-  '鬼哭の霊':     _rndMonsterImg(),
+  '炎鬼将':       'assets/images/chars/npc_field_monster_mao_01.png',
+  '鬼哭の霊':     'assets/images/chars/npc_field_monster_last_mao_02.png',
   '幽冥の門番':   _rndMonsterImg(),
-  '呪術師の怨念': _rndMonsterImg(),
-  '幽路の守護者': _rndMonsterImg(),
-  '幽鬼王':       _rndMonsterImg(),
+  '呪術師の怨念': 'assets/images/chars/npc_field_monster_last_mao_02.png',
+  '幽路の守護者': 'assets/images/chars/npc_field_monster_mao_01.png',
+  '幽鬼王':       'assets/images/chars/npc_field_monster_last_mao_02.png',
 };
 
 // 検索用マージ（game.js から参照する統合マップ）
