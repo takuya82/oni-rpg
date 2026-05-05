@@ -880,7 +880,10 @@ function processEventStep(step) {
       showEventChoices(step.choices);
       break;
     case 'battle':
-      startBattle([createEnemyInstance(step.enemyId)], () => advanceEvent());
+      startBattle([createEnemyInstance(step.enemyId)], () => {
+        showScreen('event');
+        advanceEvent();
+      });
       break;
     case 'warp':
       G.area = step.areaId;
