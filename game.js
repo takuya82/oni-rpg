@@ -1648,22 +1648,14 @@ function renderEnemyArea() {
     spriteEl.style.cssText = deadStyle ? deadStyle.split(';').map(s=>s.trim()).join(';') : '';
 
     if (imgSrc) {
-      const img = new Image();
-      img.onload = () => {
-        const cacheKey = `${e.defId}_${_REMOVE_BG_VER}`;
-        if (!_enemyCanvasCache[cacheKey]) {
-          _enemyCanvasCache[cacheKey] = removeWhiteBg(img);
-        }
-        const processed = document.createElement('img');
-        processed.src = _enemyCanvasCache[cacheKey];
-        processed.style.cssText = `width:${spriteSize}px;height:${spriteSize}px;max-width:100%;object-fit:contain;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.9)) drop-shadow(0 0 10px rgba(200,60,60,0.5));`;
-        if (!e.isAlive) { processed.style.opacity = '0.25'; processed.style.filter += ' grayscale(1)'; }
-        spriteEl.appendChild(processed);
-      };
-      img.onerror = () => {
+      const imgEl = document.createElement('img');
+      imgEl.src = imgSrc;
+      imgEl.style.cssText = `width:${spriteSize}px;max-width:100%;height:auto;object-fit:contain;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.8);`;
+      if (!e.isAlive) { imgEl.style.opacity = '0.25'; imgEl.style.filter = 'grayscale(1)'; }
+      imgEl.onerror = () => {
         spriteEl.innerHTML = `<div class="enemy-emoji" style="font-size:${spriteSize*0.4}px">${e.emoji}</div>`;
       };
-      img.src = imgSrc;
+      spriteEl.appendChild(imgEl);
     } else {
       spriteEl.innerHTML = `<div class="enemy-emoji" style="font-size:${spriteSize*0.4}px">${e.emoji}</div>`;
     }
