@@ -697,7 +697,22 @@ const MapEngine = {
 // ─────────────────────────────────────────────────────
 //  マップ画面
 // ─────────────────────────────────────────────────────
+function ensurePartyConsistency() {
+  // 山道以降のエリアに到達しているのに朱鷺が未加入の場合は自動補完
+  const POST_MOUNTAIN = ['lake_village','oni_fortress','mountain_ruins','spirit_realm_gate','spirit_shallow','spirit_deep','bell_tower'];
+  if (POST_MOUNTAIN.includes(G.area) && !G.partyIds.includes('toki')) {
+    joinCharacter('toki');
+  }
+  // 湖の村以降なら玄海・白も補完
+  const POST_LAKE = ['oni_fortress','mountain_ruins','spirit_realm_gate','spirit_shallow','spirit_deep','bell_tower'];
+  if (POST_LAKE.includes(G.area)) {
+    if (!G.partyIds.includes('genkai')) joinCharacter('genkai');
+    if (!G.partyIds.includes('haku'))   joinCharacter('haku');
+  }
+}
+
 function openMap() {
+  ensurePartyConsistency();
   showScreen('map');
   updateMapHUD();
   MapEngine.startLoop();
