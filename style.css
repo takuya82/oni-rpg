@@ -1046,7 +1046,7 @@ html, body {
   transition: transform 0.1s, opacity 0.2s;
 }
 .enemy-sprite-wrap.attack-anim { transform: scale(1.12); }
-.enemy-sprite-wrap.boss { filter: drop-shadow(0 0 20px rgba(255,60,60,0.7)); }
+.enemy-sprite-wrap.boss { }
 
 .event-portrait-img {
   max-height: 260px;

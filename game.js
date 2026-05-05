@@ -1698,7 +1698,7 @@ function renderEnemyArea() {
     if (imgSrc) {
       const imgEl = document.createElement('img');
       imgEl.src = imgSrc;
-      imgEl.style.cssText = `width:${spriteSize}px;max-width:100%;height:auto;object-fit:contain;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.8);`;
+      imgEl.style.cssText = `width:${spriteSize}px;max-width:100%;height:auto;object-fit:contain;`;
       if (!e.isAlive) { imgEl.style.opacity = '0.25'; imgEl.style.filter = 'grayscale(1)'; }
       imgEl.onerror = () => {
         spriteEl.innerHTML = `<div class="enemy-emoji" style="font-size:${spriteSize*0.4}px">${e.emoji}</div>`;
