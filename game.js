@@ -849,9 +849,11 @@ function processEventStep(step) {
     case 'narrator':
       setEventDialog('', '📜', step.text);
       break;
-    case 'player':
-      setEventDialog('勇', '⚔️', step.text);
+    case 'player': {
+      const _pName = (G.allChars && G.allChars['player']) ? G.allChars['player'].name : '勇';
+      setEventDialog(_pName, '⚔️', step.text, 'player');
       break;
+    }
     case 'companion': {
       const _cid = SPEAKER_TO_CHAR[step.speaker];
       // キャラが未参加かつ、このイベント内でそのキャラが joinParty されない場合はスキップ
@@ -898,11 +900,11 @@ function processEventStep(step) {
   }
 }
 
-function setEventDialog(speaker, portrait, text) {
+function setEventDialog(speaker, portrait, text, charIdOverride) {
   $('event-speaker').textContent = speaker || '';
 
   const portraitEl = $('event-portrait');
-  const charId   = SPEAKER_TO_CHAR[speaker];
+  const charId   = charIdOverride || SPEAKER_TO_CHAR[speaker];
   const enemyId  = SPEAKER_TO_ENEMY[speaker];
   const imgSrc   = charId  ? CHAR_IMAGES[charId]
                  : enemyId ? ENEMY_IMAGES[enemyId]
@@ -2171,7 +2173,7 @@ function showEnding(type, title) {
   const ev = type === 'A' ? EVENTS['ev_ending_a'] : EVENTS['ev_ending_b'];
   const texts = ev ? ev.steps.filter(s => s.type !== 'narrator' || true).map(s => {
     if (s.type === 'narrator') return s.text;
-    if (s.type === 'player')   return `勇「${s.text}」`;
+    if (s.type === 'player')   return `${(G.allChars && G.allChars['player']) ? G.allChars['player'].name : '勇'}「${s.text}」`;
     if (s.type === 'companion') return `${s.speaker}「${s.text}」`;
     return '';
   }).filter(Boolean) : [];
