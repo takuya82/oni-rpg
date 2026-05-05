@@ -1144,6 +1144,12 @@ function playerActionSkill(skillId) {
   if (!skill) return;
   if (char.mp < skill.mpCost) { showMessage('MPが足りない！'); return; }
 
+  // 単体対象の味方スキルはターゲット選択UIを出す
+  if (skill.target === 'single_ally') {
+    showSkillTargetMenu(skillId, char);
+    return;
+  }
+
   char.mp -= skill.mpCost;
   hideSubMenu();
   hideBattleActions();
@@ -1154,6 +1160,48 @@ function playerActionSkill(skillId) {
     if (checkBattleEnd()) return;
     advanceTurn();
   });
+}
+
+function showSkillTargetMenu(skillId, char) {
+  const skill = SKILLS[skillId];
+  const sub = $('battle-sub-menu');
+  sub.innerHTML = '';
+  sub.classList.remove('hidden');
+
+  const header = document.createElement('div');
+  header.className = 'sub-menu-header';
+  header.textContent = `── ${skill.name} — 誰に使う？ ──`;
+  sub.appendChild(header);
+
+  const targets = getActiveParty().filter(c => c.isAlive);
+
+  targets.forEach(target => {
+    const btn = document.createElement('button');
+    btn.className = 'sub-menu-item';
+    const hpPct = Math.floor((target.hp / target.maxHp) * 100);
+    btn.innerHTML = `<span>${target.emoji} ${target.name}</span><span style="font-size:11px;color:var(--text-dim)">HP ${target.hp}/${target.maxHp} (${hpPct}%)</span>`;
+    btn.onclick = () => {
+      char.mp -= skill.mpCost;
+      hideSubMenu();
+      hideBattleActions();
+      // single_ally なので target を上書きして適用
+      const amount = Math.floor(target.maxHp * (skill.healPct || 0.3));
+      target.hp = Math.min(target.maxHp, target.hp + amount);
+      const msgs = [`${char.name}の${skill.name}！ ${target.name}のHPが${amount}回復！`];
+      enqueueMsgs(msgs, () => {
+        renderBattleScreen();
+        if (checkBattleEnd()) return;
+        advanceTurn();
+      });
+    };
+    sub.appendChild(btn);
+  });
+
+  const cancel = document.createElement('button');
+  cancel.className = 'sub-menu-cancel';
+  cancel.textContent = '← 戻る';
+  cancel.onclick = showSkillMenu;
+  sub.appendChild(cancel);
 }
 
 function applyPlayerSkill(skill, char) {
