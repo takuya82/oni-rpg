@@ -149,9 +149,9 @@ const EVENTS = {
 
   ev_intro: { id:'ev_intro', steps:[
     { type:'narrator', text:'── 火が消えた後の静寂。煙が空を黒く染めている。' },
-    { type:'narrator', text:'主人公の勇は瓦礫の中で目を覚ました。' },
+    { type:'narrator', text:'主人公の{player}は瓦礫の中で目を覚ました。' },
     { type:'player',   text:'…村が。村が燃えている。' },
-    { type:'narrator', text:'勇は立ち上がり、周囲を見渡した。動くものは何もない。' },
+    { type:'narrator', text:'{player}は立ち上がり、周囲を見渡した。動くものは何もない。' },
     { type:'player',   text:'みんな…どこに行ったんだ。' },
     { type:'narrator', text:'その時、離れた場所で鬼の影が動いた。' },
     { type:'narrator', text:'鬼は一言も発せず、残った神社を壊し始めた。' },
@@ -159,7 +159,7 @@ const EVENTS = {
   ]},
 
   ev_explore: { id:'ev_explore', steps:[
-    { type:'narrator', text:'勇は村の中を歩き回った。' },
+    { type:'narrator', text:'{player}は村の中を歩き回った。' },
     { type:'narrator', text:'生存者の気配はない。しかし、不思議なことに死体も見当たらない。' },
     { type:'player',   text:'みんなどこへ行った…' },
     { type:'narrator', text:'廃屋の片隅に、幼い頃に母からもらった鈴が落ちていた。' },
@@ -169,7 +169,7 @@ const EVENTS = {
 
   ev_boss_ch1: { id:'ev_boss_ch1', steps:[
     { type:'narrator', text:'焔に包まれた鬼の将が、目の前に立ちはだかった。' },
-    { type:'enemy',    speaker:'焔鬼将', text:'…（無言のまま、勇を見下ろしている）' },
+    { type:'enemy',    speaker:'焔鬼将', text:'…（無言のまま、{player}を見下ろしている）' },
     { type:'player',   text:'どけっ！' },
     { type:'battle',   enemyId:'honooOniSho' },
     { type:'narrator', text:'鬼将が倒れた。' },
@@ -180,7 +180,7 @@ const EVENTS = {
   ]},
 
   ev_mountain_escape: { id:'ev_mountain_escape', steps:[
-    { type:'narrator', text:'勇は山道を走った。背後に鬼の足音が続く。' },
+    { type:'narrator', text:'{player}は山道を走った。背後に鬼の足音が続く。' },
     { type:'player',   text:'くそ、まだ追ってくる…！' },
     { type:'narrator', text:'しばらく走ると、足音が遠のいた。' },
   ]},
@@ -204,7 +204,7 @@ const EVENTS = {
   ]},
 
   ev_meet_toki_no: { id:'ev_meet_toki_no', steps:[
-    { type:'narrator',  text:'勇は足を止めなかった。' },
+    { type:'narrator',  text:'{player}は足を止めなかった。' },
     { type:'narrator',  text:'しかし、しばらく後、後ろから足音が追いついてきた。' },
     { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'…置いていかないでよ。薙刀ならある。役に立つから。' },
     { type:'joinParty', charId:'toki' },
@@ -283,7 +283,7 @@ const EVENTS = {
   ev_gate_open: { id:'ev_gate_open', steps:[
     { type:'narrator',  text:'山の奥深く、空気が歪んでいる場所があった。' },
     { type:'companion', speaker:'玄海', emoji:'🔮', text:'これが幽路の扉じゃ。霊力を注げば開く。' },
-    { type:'narrator',  text:'勇たちは霊力を注いだ。扉がゆっくりと開く。' },
+    { type:'narrator',  text:'{player}たちは霊力を注いだ。扉がゆっくりと開く。' },
   ]},
 
   ev_gate_haku: { id:'ev_gate_haku', steps:[
@@ -362,7 +362,7 @@ const EVENTS = {
   ]},
 
   ev_bell_choice: { id:'ev_bell_choice', steps:[
-    { type:'companion', speaker:'白',   emoji:'🌙', text:'勇、鐘を鳴らして。みんなを解放して。百年間苦しんできた人たちを。' },
+    { type:'companion', speaker:'白',   emoji:'🌙', text:'{player}、鐘を鳴らして。みんなを解放して。百年間苦しんできた人たちを。' },
     { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'でも白が…！' },
     { type:'companion', speaker:'白',   emoji:'🌙', text:'大丈夫。私はもう百年前に死んでいるもの。今まで一緒にいられたことが…嬉しかった。' },
     { type:'choice',    text:'鐘の前に立った。', choices:[
@@ -372,13 +372,13 @@ const EVENTS = {
   ]},
 
   ev_ending_a: { id:'ev_ending_a', isEnding:true, endingType:'A', endingTitle:'鐘響く春', steps:[
-    { type:'narrator',  text:'勇は鐘を打った。' },
+    { type:'narrator',  text:'{player}は鐘を打った。' },
     { type:'narrator',  text:'音は幽路に響き渡り、世界が白く輝いた。' },
-    { type:'companion', speaker:'白',   emoji:'🌙', text:'ありがとう。勇、朱鷺、玄海。' },
+    { type:'companion', speaker:'白',   emoji:'🌙', text:'ありがとう。{player}、朱鷺、玄海。' },
     { type:'companion', speaker:'白',   emoji:'🌙', text:'みんなのこと、ずっと覚えているから。' },
     { type:'narrator',  text:'白の姿が、光の粒子となって消えた。' },
     { type:'narrator',  text:'幽路の全ての鬼が解放された。百年の呪いが、今終わった。' },
-    { type:'narrator',  text:'勇と朱鷺と玄海は、現世に戻った。' },
+    { type:'narrator',  text:'{player}と朱鷺と玄海は、現世に戻った。' },
     { type:'player',    text:'（白は消えた。でも、彼女が望んだ結末だ。）' },
     { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'（泣きながら）バカ…バカ白…。' },
     { type:'companion', speaker:'玄海', emoji:'🔮', text:'（静かに）…よくやった。これでよかった。' },
@@ -388,13 +388,13 @@ const EVENTS = {
   ]},
 
   ev_ending_b: { id:'ev_ending_b', isEnding:true, endingType:'B', endingTitle:'終わらない旅', steps:[
-    { type:'narrator',  text:'勇は鐘の前で立ち尽くした。' },
+    { type:'narrator',  text:'{player}は鐘の前で立ち尽くした。' },
     { type:'player',    text:'俺には…お前を消せない。' },
-    { type:'companion', speaker:'白',   emoji:'🌙', text:'勇…。' },
+    { type:'companion', speaker:'白',   emoji:'🌙', text:'{player}…。' },
     { type:'player',    text:'別の方法を探す。お前を消さない方法を。絶対に。' },
     { type:'companion', speaker:'白',   emoji:'🌙', text:'（長い沈黙の後）…分かった。一緒に探しましょう。' },
     { type:'narrator',  text:'幽路は閉じなかった。鬼は残った。世界には今も鬼がいる。' },
-    { type:'narrator',  text:'しかし、勇と白は歩き続けた。呪いを解く別の方法を求めて。' },
+    { type:'narrator',  text:'しかし、{player}と白は歩き続けた。呪いを解く別の方法を求めて。' },
     { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'（小さく）私も一緒に行く。全員で探す。' },
     { type:'companion', speaker:'玄海', emoji:'🔮', text:'やれやれ…老いた体に鞭打つことになるとは。' },
     { type:'narrator',  text:'四人の旅は、終わらない。' },

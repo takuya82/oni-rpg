@@ -844,14 +844,19 @@ function finishEvent() {
   if (Ev.onDone) Ev.onDone();
 }
 
+function fillPlayerName(text) {
+  const name = (G.allChars && G.allChars['player']) ? G.allChars['player'].name : '勇';
+  return text ? text.replace(/\{player\}/g, name) : text;
+}
+
 function processEventStep(step) {
   switch (step.type) {
     case 'narrator':
-      setEventDialog('', '📜', step.text);
+      setEventDialog('', '📜', fillPlayerName(step.text));
       break;
     case 'player': {
       const _pName = (G.allChars && G.allChars['player']) ? G.allChars['player'].name : '勇';
-      setEventDialog(_pName, '⚔️', step.text, 'player');
+      setEventDialog(_pName, '⚔️', fillPlayerName(step.text), 'player');
       break;
     }
     case 'companion': {
@@ -861,11 +866,11 @@ function processEventStep(step) {
         const _willJoin = Ev.steps.some(s => s.type === 'joinParty' && s.charId === _cid);
         if (!_willJoin) { advanceEvent(); break; }
       }
-      setEventDialog(step.speaker, step.emoji || '👤', step.text);
+      setEventDialog(step.speaker, step.emoji || '👤', fillPlayerName(step.text));
       break;
     }
     case 'enemy':
-      setEventDialog(step.speaker, '👹', step.text);
+      setEventDialog(step.speaker, '👹', fillPlayerName(step.text));
       break;
     case 'gain':
       setEventDialog('', '✨', step.text);
