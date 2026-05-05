@@ -1577,7 +1577,7 @@ function renderBattleScreen() {
 
 // 白背景除去済みキャンバスのキャッシュ（v2: 閾値変更でリセット）
 const _enemyCanvasCache = {};
-const _REMOVE_BG_VER = 'v2';
+const _REMOVE_BG_VER = 'v3';
 
 function removeWhiteBg(img) {
   try {
@@ -1587,17 +1587,22 @@ function removeWhiteBg(img) {
     cx.drawImage(img, 0, 0);
     const d = cx.getImageData(0, 0, c.width, c.height);
     const px = d.data;
+    // チェッカーパターン検出用：2x2ブロックの平均色を先に計算
+    const w = c.width;
     for (let i = 0; i < px.length; i += 4) {
       const r = px[i], g = px[i+1], b = px[i+2];
       const brightness  = r * 0.299 + g * 0.587 + b * 0.114;
       const saturation  = Math.max(r, g, b) - Math.min(r, g, b);
       if (brightness > 200 && saturation < 60) {
-        // 明るく彩度の低いピクセル → 完全透過
+        // 白・薄グレー背景 → 完全透過
         px[i+3] = 0;
       } else if (brightness > 160 && saturation < 35) {
-        // フリンジ（境界のアンチエイリアス）→ 段階的に透過
+        // フリンジ → 段階的に透過
         const t = (brightness - 160) / 40;
         px[i+3] = Math.floor(px[i+3] * (1 - t));
+      } else if (brightness > 100 && brightness < 185 && saturation < 25) {
+        // チェッカー柄グレー（JPEGに変換された透過部分）→ 完全透過
+        px[i+3] = 0;
       }
     }
     cx.putImageData(d, 0, 0);

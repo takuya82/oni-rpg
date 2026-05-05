@@ -11,20 +11,20 @@ const CHAR_IMAGES = {
 };
 
 const ENEMY_IMAGES = {
-  noOni:       'assets/images/enemies/noOni.png',
-  yamaOni:     'assets/images/enemies/yamaOni.png',
-  nakaOni:     'assets/images/enemies/nakaOni.png',
-  oniZamurai:  'assets/images/enemies/oniZamurai.png',
-  oniBoshi:    'assets/images/enemies/oniBoshi.png',
-  oniSho:      'assets/images/enemies/oniSho.png',
-  yoroiOni:    'assets/images/enemies/yoroiOni.png',
-  yuuOni:      'assets/images/enemies/yuuOni.png',
-  onryoOni:    'assets/images/enemies/onryoOni.png',
+  noOni:       'assets/images/enemies/noOni.jpg',
+  yamaOni:     'assets/images/enemies/yamaOni.jpg',
+  nakaOni:     'assets/images/enemies/nakaOni.jpg',
+  oniZamurai:  'assets/images/enemies/oniZamurai.jpg',
+  oniBoshi:    'assets/images/enemies/oniBoshi.jpg',
+  oniSho:      'assets/images/enemies/oniSho.jpg',
+  yoroiOni:    'assets/images/enemies/yoroiOni.jpg',
+  yuuOni:      'assets/images/enemies/yuuOni.jpg',
+  onryoOni:    'assets/images/enemies/onryoOni.jpg',
   honooOniSho: 'assets/images/enemies/honooOniSho.png',
   kooruOniSho: 'assets/images/enemies/kooruOniSho.png',
-  oniTaisho:   'assets/images/enemies/oniTaisho.png',
-  yuuOniO:     'assets/images/enemies/yuuOniO.png',
-  kikokuShin:  'assets/images/enemies/kikokuShin.png',
+  oniTaisho:   'assets/images/enemies/oniTaisho.jpg',
+  yuuOniO:     'assets/images/enemies/yuuOniO.jpg',
+  kikokuShin:  'assets/images/enemies/kikokuShin.jpg',
 };
 
 const BG_IMAGES = {
