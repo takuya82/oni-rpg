@@ -2046,6 +2046,7 @@ function renderMenu(tab) {
 
   if (tab === 'status')    renderStatusTab(body);
   if (tab === 'inventory') renderInventoryTab(body);
+  if (tab === 'skill')     renderSkillTab(body);
   if (tab === 'equipment') renderEquipmentTab(body);
   if (tab === 'save')      renderSaveTab(body);
 }
@@ -2120,23 +2121,95 @@ function renderInventoryTab(body) {
     `;
     if (['heal','healMP','healBoth','cure','revive'].includes(item.type)) {
       div.title = 'クリックで使用';
-      div.onclick = () => useItemFromMenu(slot.id, i);
+      div.style.cursor = 'pointer';
+      div.onclick = () => useItemFromMenu(slot.id);
     }
     body.appendChild(div);
   });
 }
 
-function useItemFromMenu(itemId, idx) {
+function useItemFromMenu(itemId) {
   const item = ITEMS[itemId];
   if (!item) return;
-  const target = getActiveParty().find(c => c.isAlive && (item.type === 'revive' ? !c.isAlive : true));
-  const realTarget = item.type === 'revive'
-    ? getActiveParty().find(c => !c.isAlive)
-    : getActiveParty().find(c => c.isAlive);
-  if (!realTarget) { showMessage('対象がいない。'); return; }
-  const msgs = applyItem(item, realTarget);
-  removeItem(itemId, 1);
-  showMessage(msgs.join('<br>'), () => renderMenu('inventory'));
+  const isRevive = item.type === 'revive';
+  const candidates = getActiveParty().filter(c => isRevive ? !c.isAlive : c.isAlive);
+  if (candidates.length === 0) { showMessage(isRevive ? '戦闘不能の者がいない。' : '使える相手がいない。'); return; }
+  selectFieldTarget(candidates, '誰に使う？', target => {
+    const msgs = applyItem(item, target);
+    removeItem(itemId, 1);
+    showMessage(msgs.join('<br>'), () => renderMenu('inventory'));
+  });
+}
+
+function selectFieldTarget(candidates, title, onSelect) {
+  let html = `<div style="margin-bottom:8px;font-size:14px;color:var(--gold)">${title}</div>`;
+  candidates.forEach(c => {
+    const hpPct = Math.round(c.hp / c.maxHp * 100);
+    html += `<button class="ok-btn" style="display:block;width:100%;margin:4px 0;text-align:left;padding:8px 12px"
+      onclick="hideOverlay('overlay-message');window._fieldTargetCb && window._fieldTargetCb('${c.defId}')">
+      ${c.emoji} ${c.name}　HP ${c.hp}/${c.maxHp} (${hpPct}%)
+    </button>`;
+  });
+  html += `<button class="close-btn" style="margin-top:8px;width:100%" onclick="hideOverlay('overlay-message')">キャンセル</button>`;
+  window._fieldTargetCb = defId => {
+    const target = getActiveParty().find(c => c.defId === defId);
+    if (target) onSelect(target);
+    window._fieldTargetCb = null;
+  };
+  showMessage(html);
+}
+
+function renderSkillTab(body) {
+  const FIELD_SKILL_TYPES = ['heal'];
+  const party = getActiveParty();
+  let anySkill = false;
+  party.forEach(c => {
+    const fieldSkills = (c.skills || []).filter(sid => {
+      const sk = PLAYER_SKILLS[sid];
+      return sk && FIELD_SKILL_TYPES.includes(sk.type);
+    });
+    if (fieldSkills.length === 0) return;
+    anySkill = true;
+    const section = document.createElement('div');
+    section.className = 'skill-section';
+    section.innerHTML = `<div class="skill-section-name">${c.emoji} ${c.name}</div>`;
+    fieldSkills.forEach(sid => {
+      const sk = PLAYER_SKILLS[sid];
+      const canUse = c.mp >= sk.mpCost;
+      const btn = document.createElement('div');
+      btn.className = 'inv-item' + (canUse ? '' : ' inv-item-disabled');
+      btn.innerHTML = `
+        <div class="inv-item-info">
+          <div class="inv-item-name">${sk.name}</div>
+          <div class="inv-item-desc">${sk.description}　消費MP: ${sk.mpCost}</div>
+        </div>
+        <div class="inv-item-count" style="color:var(--blue)">MP${c.mp}</div>
+      `;
+      if (canUse) {
+        btn.onclick = () => useSkillFromMenu(c, sk);
+      }
+      section.appendChild(btn);
+    });
+    body.appendChild(section);
+  });
+  if (!anySkill) {
+    const empty = document.createElement('div');
+    empty.className = 'inv-empty';
+    empty.textContent = 'フィールドで使える術がない。';
+    body.appendChild(empty);
+  }
+}
+
+function useSkillFromMenu(caster, skill) {
+  const candidates = getActiveParty().filter(c => c.isAlive);
+  if (candidates.length === 0) { showMessage('対象がいない。'); return; }
+  selectFieldTarget(candidates, `${caster.name}の「${skill.name}」\n誰に使う？`, target => {
+    if (caster.mp < skill.mpCost) { showMessage('MPが足りない！'); return; }
+    caster.mp -= skill.mpCost;
+    const healAmt = Math.floor(target.maxHp * (skill.healPct || 0));
+    target.hp = Math.min(target.maxHp, target.hp + healAmt);
+    showMessage(`${caster.name}の${skill.name}！\n${target.name}のHPが ${healAmt} 回復した！`, () => renderMenu('skill'));
+  });
 }
 
 function renderEquipmentTab(body) {

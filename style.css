@@ -865,6 +865,10 @@ html, body {
 .inv-item-count { font-size: 14px; color: var(--gold); }
 .inv-empty { color: var(--text-dim); text-align: center; padding: 30px; font-size: 14px; }
 .gold-display { font-size: 16px; color: var(--gold); margin-bottom: 12px; }
+.inv-item-disabled { opacity: 0.45; cursor: not-allowed; }
+.inv-item-disabled:hover { border-color: var(--border); }
+.skill-section { margin-bottom: 14px; }
+.skill-section-name { font-size: 13px; color: var(--gold); letter-spacing: 1px; margin-bottom: 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
 
 /* Menu: Equipment tab */
 .equip-member {
