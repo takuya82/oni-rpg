@@ -1728,22 +1728,31 @@ function renderEnemyArea() {
     spriteEl.style.cssText = deadStyle ? deadStyle.split(';').map(s=>s.trim()).join(';') : '';
 
     if (imgSrc) {
-      const img = new Image();
-      img.onload = () => {
-        const cacheKey = `${e.defId}_${_REMOVE_BG_VER}`;
-        if (!_enemyCanvasCache[cacheKey]) {
-          _enemyCanvasCache[cacheKey] = removeWhiteBg(img);
-        }
+      if (e.isBoss) {
+        // ボス画像は背景込みの完成画。canvas加工をスキップして原画をそのまま表示（画質保持）
         const processed = document.createElement('img');
-        processed.src = _enemyCanvasCache[cacheKey];
+        processed.src = imgSrc;
         processed.style.cssText = `width:${spriteSize}px;max-width:100%;height:auto;object-fit:contain;`;
         if (!e.isAlive) { processed.style.opacity = '0.25'; processed.style.filter = 'grayscale(1)'; }
         spriteEl.appendChild(processed);
-      };
-      img.onerror = () => {
-        spriteEl.innerHTML = `<div class="enemy-emoji" style="font-size:${spriteSize*0.4}px">${e.emoji}</div>`;
-      };
-      img.src = imgSrc;
+      } else {
+        const img = new Image();
+        img.onload = () => {
+          const cacheKey = `${e.defId}_${_REMOVE_BG_VER}`;
+          if (!_enemyCanvasCache[cacheKey]) {
+            _enemyCanvasCache[cacheKey] = removeWhiteBg(img);
+          }
+          const processed = document.createElement('img');
+          processed.src = _enemyCanvasCache[cacheKey];
+          processed.style.cssText = `width:${spriteSize}px;max-width:100%;height:auto;object-fit:contain;`;
+          if (!e.isAlive) { processed.style.opacity = '0.25'; processed.style.filter = 'grayscale(1)'; }
+          spriteEl.appendChild(processed);
+        };
+        img.onerror = () => {
+          spriteEl.innerHTML = `<div class="enemy-emoji" style="font-size:${spriteSize*0.4}px">${e.emoji}</div>`;
+        };
+        img.src = imgSrc;
+      }
     } else {
       spriteEl.innerHTML = `<div class="enemy-emoji" style="font-size:${spriteSize*0.4}px">${e.emoji}</div>`;
     }
