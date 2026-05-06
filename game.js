@@ -1700,8 +1700,13 @@ function renderEnemyArea() {
   const hasBoss    = Battle.enemies.some(e => e && e.isBoss);
   cont.style.flexWrap   = isSingle ? 'nowrap' : 'wrap';
   cont.style.gap        = isSingle ? '0' : '12px';
-  cont.style.alignItems = (hasBoss && isSingle) ? 'center' : 'flex-end';
-  cont.style.minHeight  = (hasBoss && isSingle) ? '300px' : '220px';
+  cont.style.alignItems = 'center';
+  if (hasBoss && isSingle) {
+    cont.classList.add('boss-area');
+  } else {
+    cont.classList.remove('boss-area');
+    cont.style.minHeight = '220px';
+  }
 
   Battle.enemies.forEach(e => {
     if (!e) return;
@@ -1718,7 +1723,7 @@ function renderEnemyArea() {
     // 単体:大きく / 複数:小さく並べる（画面幅に収まるよう上限を設ける）
     const maxW = Math.max(200, Math.min(window.innerWidth, 420) - 32);
     const spriteSize = isSingle
-      ? (e.isBoss ? Math.min(300, maxW) : Math.min(240, maxW))
+      ? (e.isBoss ? maxW : Math.min(240, maxW))
       : (e.isBoss ? 180 : 150);
 
     // ── スプライト（canvas経由で白背景除去）──
@@ -1732,7 +1737,7 @@ function renderEnemyArea() {
         // ボス画像は背景込みの完成画。canvas加工をスキップして原画をそのまま表示（画質保持）
         const processed = document.createElement('img');
         processed.src = imgSrc;
-        processed.style.cssText = `width:${spriteSize}px;max-width:100%;height:auto;object-fit:contain;`;
+        processed.style.cssText = `width:100%;max-width:${spriteSize}px;height:auto;object-fit:contain;display:block;`;
         if (!e.isAlive) { processed.style.opacity = '0.25'; processed.style.filter = 'grayscale(1)'; }
         spriteEl.appendChild(processed);
       } else {

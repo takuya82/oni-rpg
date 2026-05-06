@@ -592,6 +592,18 @@ html, body {
   flex-wrap: nowrap;
   gap: 0;
 }
+.battle-enemy-area.boss-area {
+  padding: 0;
+  min-height: 42vh;
+  align-items: center;
+  justify-content: center;
+}
+.battle-enemy-area.boss-area .battle-enemy {
+  width: 100%;
+}
+.battle-enemy-area.boss-area .enemy-sprite-wrap {
+  width: 100%;
+}
 .battle-enemy {
   text-align: center;
   display: flex;
