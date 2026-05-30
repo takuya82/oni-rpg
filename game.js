@@ -492,8 +492,14 @@ const MapEngine = {
     if (y < 0 || y >= g.length || x < 0 || x >= (g[0]||[]).length) return false;
     const t = g[y][x];
     if (t === T.WALL || t === T.WATER) return false;
+    if (this.buildingSolidAt(md, x, y)) return false;
     if ((md.npcs||[]).some(n => n.x === x && n.y === y && !(n.defeatedFlag && G.flags[n.defeatedFlag]))) return false;
     return true;
+  },
+
+  // 建物の footprint は通行不可（扉も含め内部マップは無いので障害物扱い）
+  buildingSolidAt(md, x, y) {
+    return (md.buildings||[]).some(b => x >= b.x && x < b.x+b.w && y >= b.y && y < b.y+b.h);
   },
 
   // 到着時：ワープ・エンカウント判定
@@ -675,6 +681,39 @@ const MapEngine = {
     ctx.fillRect(dx, dy, TS, TS);
   },
 
+  // 建物を屋根＋壁＋扉で描画（足元に影付き）
+  drawBuilding(b, cam) {
+    const TS = this.TILE;
+    // スタイル: burned=石/灰・wood=木造（既定）
+    const S = b.style === 'burned'
+      ? { roof:150, wall:72, door:114 }
+      : { roof:142, wall:62, door:104 };
+    const roofRows = b.h >= 4 ? 2 : 1;          // 高い家は屋根2段
+    const doorX = b.x + Math.floor(b.w/2);
+    const doorY = b.y + b.h - 1;
+
+    // 建物足元の影（横長）
+    const baseX = Math.round(b.x*TS - cam.x);
+    const baseY = Math.round((b.y+b.h)*TS - cam.y);
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(baseX + b.w*TS/2, baseY - 2, b.w*TS*0.5, TS*0.22, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    for (let yy = 0; yy < b.h; yy++) {
+      for (let xx = 0; xx < b.w; xx++) {
+        const tx = b.x+xx, ty = b.y+yy;
+        const dx = Math.round(tx*TS - cam.x), dy = Math.round(ty*TS - cam.y);
+        let idx = (yy < roofRows) ? S.roof : S.wall;
+        if (tx === doorX && ty === doorY) idx = S.door;
+        this.drawKenney(idx, dx, dy);
+      }
+    }
+  },
+
   // ── 描画 ─────────────────────────────────────────────
   render() {
     if (!this.ctx) return;
@@ -703,6 +742,9 @@ const MapEngine = {
         this.drawTileType(t, dx, dy, now);
       }
     }
+
+    // 建物（屋根＋壁＋扉）
+    (md.buildings||[]).forEach(b => this.drawBuilding(b, cam));
 
     const [ddx, ddy] = DIRV[this.player.dir] || [0, 1];
 

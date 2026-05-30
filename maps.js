@@ -59,12 +59,6 @@ const MAP_DATA = {};
 (function() {
   const m = mkMap(T.FLOOR);
   addBorder(m);
-  // 廃屋1・2（左上）
-  hollowRect(m, 2, 2, 5, 4, T.WALL);
-  hollowRect(m, 7, 2, 11, 4, T.WALL);
-  // 廃屋3・4（中央）
-  hollowRect(m, 2, 8, 6, 11, T.WALL);
-  hollowRect(m, 12, 8, 17, 11, T.WALL);
   // 右出口（山道へ）
   m[13][18] = T.WARP;
   m[13][19] = T.FLOOR;
@@ -72,6 +66,13 @@ const MAP_DATA = {};
   MAP_DATA['burned_village'] = {
     data: m,
     playerStart: { x: 1, y: 13 },
+    // 焼け落ちた廃屋（石・灰スタイル）
+    buildings: [
+      { x:2,  y:2,  w:3, h:3, style:'burned' },
+      { x:8,  y:2,  w:4, h:3, style:'burned' },
+      { x:2,  y:9,  w:3, h:3, style:'burned' },
+      { x:13, y:10, w:4, h:3, style:'burned' },
+    ],
     npcs: [
       { x:5,  y:6,  spriteId:84, name:'老人の霊',   event:'ev_intro',  seenFlag:'ev_intro_seen' },
       { x:10, y:7,  spriteId:88, name:'兵士の亡霊', event:null,        seenFlag:'soldier_seen'  },
@@ -123,10 +124,6 @@ const MAP_DATA = {};
 (function() {
   const m = mkMap(T.FLOOR);
   addBorder(m);
-  // 建物群
-  hollowRect(m, 2, 2, 5, 4, T.WALL);
-  hollowRect(m, 8, 2, 12, 5, T.WALL);
-  hollowRect(m, 3, 8, 7, 11, T.WALL);
   // 湖（右下）
   fillRect(m, 12, 10, 18, 13, T.WATER);
   // 左入口（山道から）
@@ -138,6 +135,12 @@ const MAP_DATA = {};
   MAP_DATA['lake_village'] = {
     data: m,
     playerStart: { x: 1, y: 7 },
+    // 木造の民家
+    buildings: [
+      { x:2,  y:2,  w:3, h:3, style:'wood' },
+      { x:11, y:2,  w:3, h:3, style:'wood' },
+      { x:2,  y:9,  w:3, h:3, style:'wood' },
+    ],
     npcs: [
       { x:9,  y:4, spriteId:84, name:'村の長老',  event:'ev_lake_arrival', seenFlag:'lake_arrival_seen' },
       { x:5,  y:9, spriteId:86, name:'村の武士',  event:'ev_lake_shrine',  seenFlag:'lake_shrine_seen'  },
