@@ -66,8 +66,6 @@ const SPEAKER_TO_ENEMY = {
 
 // フィールドマップ用スプライト
 const PLAYER_FIELD_IMAGE = 'assets/images/chars/player_field.png';
-// 歩行スプライトシート（3フレーム×4方向：down/left/right/up）
-const PLAYER_WALK_IMAGE = 'assets/images/chars/player_walk.png';
 
 // ── 村人系 NPC ──────────────────────────────────────────
 const NPC_FIELD_IMAGES_VILLAGER = {
