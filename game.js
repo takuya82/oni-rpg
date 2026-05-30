@@ -2450,6 +2450,8 @@ function renderSaveTab(body) {
 // ─────────────────────────────────────────────────────
 function saveGame(slot) {
   const key  = `onirpg_save_${slot}`;
+  // プレイヤーのマップ上の位置をGに焼き込む（ロード時に正確に復元するため）
+  G.playerPos = { x: MapEngine.player.x, y: MapEngine.player.y, dir: MapEngine.player.dir };
   const data = JSON.parse(JSON.stringify(G));
   data.savedAt = new Date().toLocaleString('ja-JP');
   localStorage.setItem(key, JSON.stringify(data));
@@ -2463,10 +2465,23 @@ function loadGame(slot) {
   try {
     G = JSON.parse(raw);
     showMessage(`スロット${slot}からロードした！`, () => {
+      restorePlayerPosition();
       openMap();
     });
   } catch(e) {
     showMessage('セーブデータが壊れている。');
+  }
+}
+
+// セーブデータの位置（無ければエリア初期位置）へプレイヤーを復元
+function restorePlayerPosition() {
+  const md = MAP_DATA[G.area];
+  const pp = G.playerPos;
+  if (pp && Number.isFinite(pp.x) && Number.isFinite(pp.y)) {
+    MapEngine.player.x = pp.x; MapEngine.player.y = pp.y;
+    MapEngine.player.dir = pp.dir || 'down';
+  } else if (md && md.playerStart) {
+    MapEngine.player.x = md.playerStart.x; MapEngine.player.y = md.playerStart.y;
   }
 }
 
@@ -2602,11 +2617,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (raw) {
         try {
           G = JSON.parse(raw);
-          const saveMD = MAP_DATA[G.area];
-          if (saveMD && saveMD.playerStart) {
-            MapEngine.player.x = saveMD.playerStart.x;
-            MapEngine.player.y = saveMD.playerStart.y;
-          }
+          restorePlayerPosition();
           openMap();
           return;
         } catch(e) {}
