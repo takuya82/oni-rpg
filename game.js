@@ -651,12 +651,15 @@ const MapEngine = {
   },
 
   // タイルタイプ → エリアテーマに沿った描画
-  drawTileType(t, dx, dy, now) {
+  drawTileType(t, dx, dy, now, tx, ty) {
     const th = THEMES[this._theme] || THEMES.village;
     switch (t) {
       case T.FLOOR:     this.drawRecipe(th.floor, dx, dy); break;
       case T.ENCOUNTER: this.drawRecipe(th.enc,   dx, dy); break;
-      case T.WATER:     this.drawRecipe(th.water, dx, dy); break;
+      case T.WATER:
+        // 下草の上に、隣接判定で岸辺（縁・角）を自動選択した水面を重ねる
+        this.drawKenney(3, dx, dy);
+        this.drawKenney(this.waterAutoIdx(tx, ty), dx, dy); break;
       case T.WARP:
         this.drawRecipe(th.warpbase, dx, dy);
         this.drawWarpGlow(dx, dy, now); break;
@@ -667,6 +670,25 @@ const MapEngine = {
       this.ctx.fillStyle = th.tint;
       this.ctx.fillRect(dx, dy, this.TILE, this.TILE);
     }
+  },
+
+  // 水タイルかどうか（範囲外は陸＝岸辺扱い）
+  _isWater(x, y) {
+    const g = this._grid;
+    if (!g) return false;
+    if (y < 0 || y >= g.length || x < 0 || x >= (g[0]||[]).length) return false;
+    return g[y][x] === T.WATER;
+  },
+
+  // 水タイルのオートタイル番号（Kenney 3×3水セット 10-12/30-32/50-52）
+  waterAutoIdx(x, y) {
+    const N = !this._isWater(x, y-1), S = !this._isWater(x, y+1);
+    const W = !this._isWater(x-1, y), E = !this._isWater(x+1, y);
+    if (N && W) return 10;  if (N && E) return 12;
+    if (S && W) return 50;  if (S && E) return 52;
+    if (N) return 11;       if (S) return 51;
+    if (W) return 30;       if (E) return 32;
+    return 31;              // 周囲すべて水＝開水面
   },
 
   drawWarpGlow(dx, dy, now) {
@@ -726,6 +748,7 @@ const MapEngine = {
     const now = Date.now();
     const cam = this.camera;
     this._theme = AREA_THEME[G.area] || 'village';
+    this._grid  = g;   // waterAutoIdx の隣接参照用
 
     // 可視範囲（カリング）
     const startCol = Math.floor(cam.x / TS);
@@ -739,7 +762,7 @@ const MapEngine = {
         const t = (g[ry] && g[ry][cx] !== undefined) ? g[ry][cx] : T.WALL;
         const dx = Math.round(cx * TS - cam.x);
         const dy = Math.round(ry * TS - cam.y);
-        this.drawTileType(t, dx, dy, now);
+        this.drawTileType(t, dx, dy, now, cx, ry);
       }
     }
 
