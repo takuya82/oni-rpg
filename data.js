@@ -41,6 +41,9 @@ const ITEMS = {
   spiritRobe:  { id:'spiritRobe',  name:'霊装束',    type:'armor',    slot:'armor',    defBonus:15,  magBonus:18, price:650, description:'+15防御力 +18魔力' },
   oniTalisman: { id:'oniTalisman', name:'鬼の護符',  type:'accessory',slot:'accessory',defBonus:8,   spdBonus:8,  price:300, description:'+8防御力 +8素早さ' },
   bellFragment:{ id:'bellFragment',name:'鐘の欠片',  type:'accessory',slot:'accessory',magBonus:25,  price:0,   description:'鐘の霊力の残滓 +25魔力' },
+  onikiriMaru:{ id:'onikiriMaru', name:'鬼斬丸',    type:'weapon',   slot:'weapon',   atkBonus:72,  magBonus:20, price:2000,description:'+72攻撃力 +20魔力。鬼を断つ伝説の刀' },
+  shinreiYoroi:{id:'shinreiYoroi',name:'神霊鎧',    type:'armor',    slot:'armor',    defBonus:32,  magBonus:24, price:1800,description:'+32防御力 +24魔力。神霊の加護を宿す' },
+  mamoriSuzu: { id:'mamoriSuzu', name:'守鈴',      type:'accessory',slot:'accessory',defBonus:12,  magBonus:18, spdBonus:12, price:1200,description:'+12防御 +18魔力 +12素早さ。鈴の音が魔を退ける' },
 };
 
 // ── キャラクター定義 ──────────────────────────────────
@@ -117,7 +120,7 @@ const ENEMY_DEFS = {
   onryoOni:   { id:'onryoOni',   name:'怨霊鬼',   emoji:'💀', level:14, maxHp:175, atk:35, def:20, mag:44, spd:16, exp:255, gold:190, skills:['atkNormal','curse','darkWave'],    drops:[{id:'revival',chance:15}],      weakness:'holy', desc:'強烈な怨念を持つ霊。聖なる力が弱点' },
   // ボス
   honooOniSho:{ id:'honooOniSho',name:'焔鬼将',   emoji:'🔥', level:3,  maxHp:300, atk:26, def:16, mag:18, spd:10, exp:180, gold:250, skills:['atkNormal','fireFang','roar'],    drops:[{id:'fullElixir',chance:100}], weakness:'spirit', isBoss:true, desc:'炎をまとった鬼の将。霊撃も効く', weaknessHint:'玄海が呟く。「炎の鬼将…霊撃が通じそうだ」' },
-  kooruOniSho:{ id:'kooruOniSho',name:'氷鬼将',   emoji:'❄️', level:7,  maxHp:520, atk:36, def:26, mag:30, spd:12, exp:380, gold:450, skills:['atkNormal','iceBlast','frigidRoar'], drops:[{id:'spiritBlade',chance:100}], weakness:'fire', isBoss:true, desc:'氷をまとった鬼の将。炎が弱点', weaknessHint:'朱鷺が気づく。「氷の鬼…炎なら！烈火刃が効くはず」', introMessage:'氷鬼将が静かに告げた──「引き返せ」' },
+  kooruOniSho:{ id:'kooruOniSho',name:'氷鬼将',   emoji:'❄️', level:7,  maxHp:520, atk:36, def:26, mag:30, spd:12, exp:380, gold:450, skills:['atkNormal','iceBlast','frigidRoar'], drops:[{id:'spiritBlade',chance:100}], weakness:'fire', isBoss:true, desc:'氷をまとった鬼の将。炎が弱点', weaknessHint:'朱鷺が気づく。「氷の鬼…炎なら！烈火刃が効くはず」' },
   oniTaisho:  { id:'oniTaisho',  name:'鬼大将',   emoji:'👑', level:12, maxHp:850, atk:52, def:38, mag:42, spd:13, exp:650, gold:750, skills:['atkNormal','oniStrike','darkAura','massRoar'], drops:[{id:'spiritRobe',chance:100}], weakness:'spirit', isBoss:true, desc:'全鬼を率いる大将。霊の力が弱点', weaknessHint:'白が感じ取る。「この鬼…霊撃と幽波が効く」' },
   yuuOniO:    { id:'yuuOniO',    name:'幽鬼王',   emoji:'🌑', level:17, maxHp:1300,atk:68, def:48, mag:72, spd:16, exp:1100,gold:1100,skills:['atkNormal','soulDrain','darkExp','haunt'], drops:[{id:'bellFragment',chance:100}], weakness:'holy', isBoss:true, desc:'幽路を支配する鬼の王。聖なる力が弱点', weaknessHint:'玄海が叫ぶ。「幽路の王じゃ…鐘の力か、霊撃で打て！」' },
   kikokuShin: { id:'kikokuShin', name:'鬼哭の霊', emoji:'💫', level:22, maxHp:2100,atk:82, def:58, mag:95, spd:18, exp:2500,gold:0,    skills:['atkNormal','soulShatter','kikokuBlast','curse'], drops:[], weakness:'holy', isBoss:true, desc:'百年の怨念が凝縮した存在', weaknessHint:'白が叫ぶ。「鐘の力よ…kananoChikara！今こそ使って！」' },
@@ -131,7 +134,7 @@ const AREAS = {
   oni_fortress:      { id:'oni_fortress',      name:'鬼の砦',          emoji:'🏯', chapter:2, desc:'鬼たちが拠点とする砦。威圧感が漂う。',                      enemies:['oniZamurai','oniBoshi','nakaOni'], encounterRate:50, spCost:2, events:['ev_fortress_enter','ev_boss_ch2'], hasShop:null, hasInn:false, nextArea:'mountain_ruins' },
   mountain_ruins:    { id:'mountain_ruins',    name:'山中の廃寺',      emoji:'⛩️', chapter:3, desc:'荒れ果てた廃寺。古い記録が眠っている。',                   enemies:['oniSho','yoroiOni'],        encounterRate:45, spCost:2, events:['ev_ruins_records','ev_ruins_haku'],        hasShop:'mountain_inn', hasInn:false, nextArea:'spirit_realm_gate' },
   spirit_realm_gate: { id:'spirit_realm_gate', name:'幽路の入口',      emoji:'🌀', chapter:3, desc:'幽路への扉が見える場所。白の体が揺らぎ始めた。',            enemies:[],                          encounterRate:0,  spCost:0, events:['ev_gate_open','ev_gate_haku','ev_boss_ch3'], hasShop:'spirit_shop', hasInn:false, nextArea:'spirit_shallow' },
-  spirit_shallow:    { id:'spirit_shallow',    name:'幽路・浅層',      emoji:'🌫️', chapter:4, desc:'幽路の浅い層。死者の魂が漂っている。',                     enemies:['yuuOni','onryoOni'],       encounterRate:55, spCost:3, events:['ev_spirit_arrive','ev_spirit_haku_truth'],  hasShop:null,    hasInn:false, nextArea:'spirit_deep' },
+  spirit_shallow:    { id:'spirit_shallow',    name:'幽路・浅層',      emoji:'🌫️', chapter:4, desc:'幽路の浅い層。死者の魂が漂っている。',                     enemies:['yuuOni','onryoOni'],       encounterRate:55, spCost:3, events:['ev_spirit_arrive','ev_spirit_haku_truth'],  hasShop:'spirit_shallow_shop', hasInn:false, nextArea:'spirit_deep' },
   spirit_deep:       { id:'spirit_deep',       name:'幽路・深層',      emoji:'⚫', chapter:4, desc:'幽路の深い層。呪いの根源が近い。',                          enemies:['yuuOni','onryoOni'],       encounterRate:60, spCost:3, events:['ev_deep_curse','ev_boss_ch4'],              hasShop:null,    hasInn:false, nextArea:'bell_tower' },
   bell_tower:        { id:'bell_tower',        name:'鬼哭の鐘楼',      emoji:'🔔', chapter:5, desc:'伝説の鐘が安置された鐘楼。選択の時が来た。',              enemies:[],                          encounterRate:0,  spCost:0, events:['ev_bell_arrive','ev_final_boss','ev_bell_choice'], hasShop:null, hasInn:false, nextArea:null },
 };
@@ -141,6 +144,7 @@ const SHOPS = {
   lake_village: { name:'村の雑貨屋', items:['herb','bigHerb','elixir','antidote','ironSword','leatherArmor'] },
   mountain_inn: { name:'廃寺近くの行商人', items:['herb','bigHerb','elixir','fullElixir','antidote','cureAll','steelSword','chainArmor','oniTalisman'] },
   spirit_shop:  { name:'幽路の入口の祠', items:['fullElixir','cureAll','revival','spiritBlade','spiritRobe'] },
+  spirit_shallow_shop: { name:'彷徨う行商人', items:['bigHerb','fullElixir','cureAll','revival','onikiriMaru','shinreiYoroi','mamoriSuzu'] },
 };
 
 // ── ストーリーイベント ────────────────────────────────
@@ -197,38 +201,48 @@ const EVENTS = {
   ]},
 
   ev_meet_toki_yes: { id:'ev_meet_toki_yes', steps:[
-    { type:'narrator',   text:'岩陰から若い女性が現れた。薙刀を手に持っている。' },
-    { type:'companion',  speaker:'朱鷺', emoji:'🌸', text:'…助けてくれるの？' },
-    { type:'player',     text:'名前は？' },
-    { type:'companion',  speaker:'朱鷺', emoji:'🌸', text:'朱鷺よ。武士の娘。父は鬼に…（言葉が詰まる）' },
-    { type:'companion',  speaker:'朱鷺', emoji:'🌸', text:'一緒に行く。一人で戦うよりも。' },
+    { type:'narrator',   text:'岩陰から、薙刀を構えた若い女性が現れた。' },
+    { type:'companion',  speaker:'朱鷺', emoji:'🌸', text:'…っ、来ないで。鬼の手下かどうか、まだ分からない。' },
+    { type:'player',     text:'鬼の手下じゃない。逃げてたところだ。' },
+    { type:'companion',  speaker:'朱鷺', emoji:'🌸', text:'…（薙刀を下ろす）…そう。見れば分かる。人間の顔してる。' },
+    { type:'companion',  speaker:'朱鷺', emoji:'🌸', text:'朱鷺よ。武士の家の娘。父は鬼に殺された。だから一人で戦おうとしてた。' },
+    { type:'player',     text:'一人じゃ無理だろ。' },
+    { type:'companion',  speaker:'朱鷺', emoji:'🌸', text:'…分かってる。だから声が聞こえたとき、少しだけ安心した。…少しだけよ。' },
+    { type:'companion',  speaker:'朱鷺', emoji:'🌸', text:'一緒に来る。足は引っ張らない。' },
     { type:'joinParty',  charId:'toki' },
     { type:'next',       nextEvent:'ev_meet_genkai_haku' },
   ]},
 
   ev_meet_toki_no: { id:'ev_meet_toki_no', steps:[
     { type:'narrator',  text:'{player}は足を止めなかった。' },
-    { type:'narrator',  text:'しかし、しばらく後、後ろから足音が追いついてきた。' },
-    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'…置いていかないでよ。薙刀ならある。役に立つから。' },
+    { type:'narrator',  text:'しばらく山道を進んだとき、後ろから足音が追いついてきた。' },
+    { type:'player',    text:'…尾けてくるな。' },
+    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'尾けてない。同じ方向に歩いてるだけよ。' },
+    { type:'player',    text:'同じことだ。' },
+    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'朱鷺。武士の家の娘よ。薙刀は使える。…一人でいるより、二人の方がいいでしょ。それだけ。' },
+    { type:'narrator',  text:'{player}は答えなかった。が、足を止めることもしなかった。それで十分だった。' },
     { type:'joinParty', charId:'toki' },
     { type:'next',      nextEvent:'ev_meet_genkai_haku' },
   ]},
 
   ev_meet_genkai_haku: { id:'ev_meet_genkai_haku', steps:[
-    { type:'narrator',  text:'山道の先に、白い衣の老人が座っていた。' },
-    { type:'companion', speaker:'玄海', emoji:'🔮', text:'お主らも鬼から逃げてきたか。' },
-    { type:'player',    text:'あんたは？' },
-    { type:'companion', speaker:'玄海', emoji:'🔮', text:'玄海じゃ。山伏をしておる。霊術なら使える。' },
-    { type:'companion', speaker:'玄海', emoji:'🔮', text:'若い頃、師から聞いた言い伝えがある。百年前のこの地のな…話せば長い、追々な。' },
-    { type:'companion', speaker:'玄海', emoji:'🔮', text:'鬼を追うなら同行しよう。霊の知識が役に立つかもしれん。' },
+    { type:'narrator',  text:'山道の先、岩の上に白い衣の老人が座っていた。目を閉じ、何かに耳を澄ませているようだった。' },
+    { type:'companion', speaker:'玄海', emoji:'🔮', text:'…来たか。煙の匂いがするから、いずれ誰か来ると思っておった。' },
+    { type:'player',    text:'あんたは何者だ。' },
+    { type:'companion', speaker:'玄海', emoji:'🔮', text:'玄海じゃ。山伏をしとる。鬼が動き始めたのも、霊の気配が乱れたのも、この目で見ておった。' },
+    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'霊の気配って、どういうこと？' },
+    { type:'companion', speaker:'玄海', emoji:'🔮', text:'おいおい話す。…それより。' },
+    { type:'narrator',  text:'玄海の視線が、{player}たちの少し後ろで止まった。' },
+    { type:'companion', speaker:'玄海', emoji:'🔮', text:'ずっとそこにおるな。こちらへおいで。' },
+    { type:'narrator',  text:'山道の端に、白い着物の少女が立っていた。いつからそこにいたのか、誰も気づいていなかった。' },
+    { type:'companion', speaker:'白',   emoji:'🌙', text:'…気づいてた、の？' },
+    { type:'companion', speaker:'玄海', emoji:'🔮', text:'霊の目には見える。お主は少し、人間と違う。' },
+    { type:'companion', speaker:'白',   emoji:'🌙', text:'…わからない。名前も、どこから来たかも。でも、ここに立っていた。呼ばれた気がして。' },
+    { type:'companion', speaker:'朱鷺', emoji:'🌸', text:'怪我は…ないみたいね。一人でいたの？' },
+    { type:'companion', speaker:'白',   emoji:'🌙', text:'…ついていっても、いい？あなたたちの行く先に、何かを知っている気がする。' },
+    { type:'companion', speaker:'玄海', emoji:'🔮', text:'ワシも同行しよう。この子のことも、鬼のことも、霊の知識が役に立つかもしれん。' },
     { type:'joinParty', charId:'genkai' },
-    { type:'narrator',  text:'玄海が仲間になった！' },
-    { type:'narrator',  text:'さらに山道を進むと、一人の少女が立っていた。' },
-    { type:'narrator',  text:'少女は虚ろな目でこちらを見ている。' },
-    { type:'companion', speaker:'白', emoji:'🌙', text:'…わからない。名前も、どこから来たかも。' },
-    { type:'companion', speaker:'白', emoji:'🌙', text:'でも…あなたたちについていきたい。何かを知っている気がする。' },
     { type:'joinParty', charId:'haku' },
-    { type:'narrator',  text:'白が仲間になった！' },
     { type:'warp',      areaId:'lake_village' },
   ]},
 

@@ -1,3 +1,14 @@
 .claude/
 
 .vercel
+
+# 開発用一時ファイル
+_new_engine.js
+kenney_rpg.zip
+kenney_index.png
+kenney_top.png
+kenney_bottom.png
+p1_*.png
+map_current.png
+battle_current.png
+.playwright-mcp/

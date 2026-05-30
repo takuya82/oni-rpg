@@ -286,27 +286,42 @@ function showLevelUpsAndThen(results, cb) {
 }
 
 // ─────────────────────────────────────────────────────
-//  キャンバスマップエンジン
+//  キャンバスマップエンジン（カメラ追従スクロール版）
+//  実装パターン: MDN "Scrolling tilemaps" 準拠
+//  - ビューポート分のみ描画（カリング）
+//  - カメラはプレイヤー中心、マップ端でクランプ
+//  - 移動はピクセル補間トゥイーン＋歩行アニメ
 // ─────────────────────────────────────────────────────
+const DIRV  = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
+
 const MapEngine = {
   canvas:     null,
   ctx:        null,
-  TILE:       32,
-  imgs:       {},
-  player:     { x:1, y:1, dir:'down' },
-  keys:       {},
-  moveTimer:    0,
-  MOVE_DELAY:   150,
+  TILE:       40,                 // 描画タイルサイズ(px)
+  VIEW_COLS:  15,                 // 表示列数（ビューポート）
+  VIEW_ROWS:  11,                 // 表示行数
+  sheets:     {},                 // 'kenney' / 'dungeon' のスプライトシート
+  fieldImgs:  {},                 // NPCフィールドスプライト
+  playerImg:  null,               // プレイヤー1枚絵スプライト
+
+  player:  { x:1, y:1, px:0, py:0, dir:'down', moving:false, t:0,
+             fromPx:0, fromPy:0, anim:0, animT:0 },
+  camera:  { x:0, y:0 },
+  keys:    {},
+  MOVE_MS:    140,                // 1マス移動にかける時間
   loopId:       null,
   interactCD:   0,
-  encCooldown:  0,   // 戦闘後エンカウント無効ステップ数
+  encCooldown:  0,
+  _busy:        false,            // 戦闘/会話などで一時停止中
 
+  // ── 初期化 ───────────────────────────────────────────
   init() {
     this.canvas = $('map-canvas');
     if (!this.canvas) return;
     this.ctx = this.canvas.getContext('2d');
-    this.canvas.width  = MAP_W * this.TILE;  // 640
-    this.canvas.height = MAP_H * this.TILE;  // 480
+    this.ctx.imageSmoothingEnabled = false;
+    this.canvas.width  = this.VIEW_COLS * this.TILE;
+    this.canvas.height = this.VIEW_ROWS * this.TILE;
 
     document.addEventListener('keydown', e => {
       this.keys[e.code] = true;
@@ -314,35 +329,54 @@ const MapEngine = {
       if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.code)) e.preventDefault();
     });
     document.addEventListener('keyup', e => { delete this.keys[e.code]; });
-    this.preloadTiles();
+
+    this.preloadSheets();
+    this.preloadFieldSprites();
     this.resizeCanvas();
     window.addEventListener('resize', () => this.resizeCanvas());
   },
 
-  preloadTiles() {
-    const ids = [0, 1, 14, 36, 48, 60, 72, 79, 84, 85, 86, 87, 88, 89, 96, 108];
-    ids.forEach(id => {
-      const img = new Image();
-      img.onload = () => { this.imgs[id] = img; };
-      img.src = `assets/tiny-dungeon/Tiles/tile_${String(id).padStart(4,'0')}.png`;
-    });
+  preloadSheets() {
+    const load = (src) => { const i = new Image(); i.src = src; return i; };
+    this.sheets.kenney  = load('assets/kenney-rpg-base/Spritesheet/RPGpack_sheet.png');
+    this.sheets.dungeon = load('assets/tiny-dungeon/Tilemap/tilemap_packed.png');
+    this.playerImg      = load(PLAYER_FIELD_IMAGE);
+  },
+
+  preloadFieldSprites() {
+    for (const src of Object.values(NPC_FIELD_IMAGES)) {
+      if (!this.fieldImgs[src]) this.fieldImgs[src] = (() => { const i = new Image(); i.src = src; return i; })();
+    }
   },
 
   resizeCanvas() {
     if (!this.canvas) return;
-    const maxW = Math.min(MAP_W * this.TILE, window.innerWidth);
-    const scale = maxW / (MAP_W * this.TILE);
-    this.canvas.style.width  = `${MAP_W * this.TILE * scale}px`;
-    this.canvas.style.height = `${MAP_H * this.TILE * scale}px`;
+    const cw = this.VIEW_COLS * this.TILE;
+    const ch = this.VIEW_ROWS * this.TILE;
+    // 画面幅・高さに収まる最大スケール（アスペクト維持）
+    const avW = window.innerWidth;
+    const avH = window.innerHeight * 0.72;
+    const scale = Math.min(avW / cw, avH / ch);
+    this.canvas.style.width  = `${Math.floor(cw * scale)}px`;
+    this.canvas.style.height = `${Math.floor(ch * scale)}px`;
   },
 
+  // ── マップ寸法ヘルパー ────────────────────────────────
+  curMap() { return MAP_DATA[G.area]; },
+  cols()   { const m = this.curMap(); return m ? m.data[0].length : 0; },
+  rows()   { const m = this.curMap(); return m ? m.data.length : 0; },
+
+  // ── ループ ───────────────────────────────────────────
   startLoop() {
+    this._busy = false;
+    this.snapToTile();
     if (this.loopId) cancelAnimationFrame(this.loopId);
     let last = performance.now();
     const loop = ts => {
-      const dt = Math.min(ts - last, 100);
+      const dt = Math.min(ts - last, 80);
       last = ts;
-      if (G.screen === 'map') { this.update(dt); this.render(); }
+      if (G.screen === 'map' && !this._busy) { this.update(dt); }
+      if (G.screen === 'map') this.render();
       this.loopId = requestAnimationFrame(loop);
     };
     this.loopId = requestAnimationFrame(loop);
@@ -352,42 +386,73 @@ const MapEngine = {
     if (this.loopId) { cancelAnimationFrame(this.loopId); this.loopId = null; }
   },
 
+  // 論理座標(player.x/y)からピクセル座標・カメラを再同期
+  snapToTile() {
+    const p = this.player;
+    p.px = p.x * this.TILE;
+    p.py = p.y * this.TILE;
+    p.moving = false; p.t = 0; p.anim = 0; p.animT = 0;
+    this.updateCamera();
+  },
+
+  // ── 更新 ─────────────────────────────────────────────
   update(dt) {
     this.interactCD = Math.max(0, this.interactCD - dt);
-    this.moveTimer += dt;
-    if (this.moveTimer < this.MOVE_DELAY) return;
+    const p = this.player;
+    const TS = this.TILE;
 
-    let dx = 0, dy = 0;
-    if      (this.keys['ArrowLeft'])  { dx=-1; this.player.dir='left';  }
-    else if (this.keys['ArrowRight']) { dx= 1; this.player.dir='right'; }
-    else if (this.keys['ArrowUp'])    { dy=-1; this.player.dir='up';    }
-    else if (this.keys['ArrowDown'])  { dy= 1; this.player.dir='down';  }
-
-    if (!dx && !dy) { this.moveTimer = this.MOVE_DELAY; return; }
-
-    const nx = this.player.x + dx;
-    const ny = this.player.y + dy;
-    if (this.walkable(nx, ny)) {
-      this.player.x = nx; this.player.y = ny; this.moveTimer = 0;
-      this.onMove();
-    } else {
-      this.moveTimer = 0;
+    if (p.moving) {
+      p.t += dt;
+      const k = Math.min(1, p.t / this.MOVE_MS);
+      p.px = p.fromPx + (p.x * TS - p.fromPx) * k;
+      p.py = p.fromPy + (p.y * TS - p.fromPy) * k;
+      if (k >= 1) {
+        p.moving = false;
+        p.px = p.x * TS; p.py = p.y * TS;
+        this.onArrive();
+        if (G.screen !== 'map') { this.updateCamera(); return; }
+      }
     }
+
+    if (!p.moving && !this._busy) {
+      const dir = this.readDir();
+      if (dir) {
+        p.dir = dir;
+        const [dx, dy] = DIRV[dir];
+        const nx = p.x + dx, ny = p.y + dy;
+        if (this.walkable(nx, ny)) {
+          p.fromPx = p.px; p.fromPy = p.py;
+          p.x = nx; p.y = ny;
+          p.moving = true; p.t = 0; p.animT = 0;
+        }
+      }
+    }
+    this.updateCamera();
+  },
+
+  readDir() {
+    const k = this.keys;
+    if (k['ArrowLeft'])  return 'left';
+    if (k['ArrowRight']) return 'right';
+    if (k['ArrowUp'])    return 'up';
+    if (k['ArrowDown'])  return 'down';
+    return null;
   },
 
   walkable(x, y) {
-    const md = MAP_DATA[G.area];
+    const md = this.curMap();
     if (!md) return false;
     const g = md.data;
     if (y < 0 || y >= g.length || x < 0 || x >= (g[0]||[]).length) return false;
     const t = g[y][x];
     if (t === T.WALL || t === T.WATER) return false;
-    if ((md.npcs||[]).some(n => n.x === x && n.y === y)) return false;
+    if ((md.npcs||[]).some(n => n.x === x && n.y === y && !(n.defeatedFlag && G.flags[n.defeatedFlag]))) return false;
     return true;
   },
 
-  onMove() {
-    const md = MAP_DATA[G.area];
+  // 到着時：ワープ・エンカウント判定
+  onArrive() {
+    const md = this.curMap();
     if (!md) return;
     const px = this.player.x, py = this.player.y;
 
@@ -403,51 +468,78 @@ const MapEngine = {
   },
 
   doWarp(warp) {
-    this.stopLoop();
-    G.area = warp.toArea;
-    if (AREAS[warp.toArea]) G.chapter = AREAS[warp.toArea].chapter;
-    const md = MAP_DATA[warp.toArea];
-    if (md) { this.player.x = warp.toX; this.player.y = warp.toY; }
+    this._busy = true;
     const cv = this.canvas;
-    cv.style.transition = 'opacity 0.2s';
+    cv.style.transition = 'opacity 0.22s';
     cv.style.opacity = '0';
     setTimeout(() => {
-      cv.style.opacity = '1';
+      G.area = warp.toArea;
+      if (AREAS[warp.toArea]) G.chapter = AREAS[warp.toArea].chapter;
+      const md = MAP_DATA[warp.toArea];
+      if (md) { this.player.x = warp.toX; this.player.y = warp.toY; }
+      this.snapToTile();
       updateMapHUD();
-      this.startLoop();
-    }, 250);
+      ensurePartyConsistency();
+      cv.style.opacity = '1';
+      this._busy = false;
+    }, 240);
   },
 
   triggerEnc() {
-    const md = MAP_DATA[G.area];
+    const md = this.curMap();
     if (!md || !md.enemies || !md.enemies.length) return;
     const id = md.enemies[randInt(0, md.enemies.length-1)];
-    this.stopLoop();
-    startBattle([createEnemyInstance(id)], () => {
-      this.encCooldown = 5;
-      showScreen('map');
-      updateMapHUD();
-      this.startLoop();
+    this._busy = true;
+    // 戦闘突入フラッシュ
+    this.battleFlash(() => {
+      startBattle([createEnemyInstance(id)], () => {
+        this.encCooldown = 5;
+        showScreen('map');
+        updateMapHUD();
+        this._busy = false;
+        this.snapToTile();
+      });
     });
   },
 
+  battleFlash(done) {
+    const cv = this.canvas;
+    cv.style.transition = 'filter 0.12s, transform 0.12s';
+    cv.style.filter = 'brightness(3)';
+    cv.style.transform = 'scale(1.04)';
+    setTimeout(() => {
+      cv.style.filter = ''; cv.style.transform = '';
+      done();
+    }, 160);
+  },
+
+  // ── インタラクト（会話） ─────────────────────────────
   tryInteract() {
-    if (this.interactCD > 0) return;
-    const md = MAP_DATA[G.area];
+    if (this.interactCD > 0 || this._busy || this.player.moving) return;
+    const md = this.curMap();
     if (!md) return;
 
-    const dirVec = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
-    const [ddx, ddy] = dirVec[this.player.dir] || [0, 1];
+    const [ddx, ddy] = DIRV[this.player.dir] || [0, 1];
     const tx = this.player.x + ddx;
     const ty = this.player.y + ddy;
 
     const npc = (md.npcs||[]).find(n => n.x === tx && n.y === ty);
     if (!npc) return;
+    if (npc.defeatedFlag && G.flags[npc.defeatedFlag]) return;
 
-    this.interactCD = 500;
-    this.stopLoop();
+    this.interactCD = 400;
+    this._busy = true;
 
-    const resume = () => { showScreen('map'); updateMapHUD(); this.startLoop(); };
+    const resume = () => { showScreen('map'); updateMapHUD(); this._busy = false; this.snapToTile(); };
+
+    const resumeOrBattle = npc.enemyId
+      ? () => {
+          startBattle([createEnemyInstance(npc.enemyId)], () => {
+            if (npc.defeatedFlag) G.flags[npc.defeatedFlag] = true;
+            resume();
+          });
+        }
+      : resume;
 
     if (!npc.event) {
       const lines = {
@@ -456,217 +548,196 @@ const MapEngine = {
       };
       const msg = npc.seenFlag && lines[npc.seenFlag] ? `${npc.name}${lines[npc.seenFlag]}` : `${npc.name}「…」`;
       G.flags[npc.seenFlag] = true;
-      showMessage(msg, resume);
+      showMessage(msg, resumeOrBattle);
       return;
     }
 
     if (npc.seenFlag && G.flags[npc.seenFlag]) {
-      showMessage(`${npc.name}「…もう話すことはない。」`, resume);
+      showMessage(`${npc.name}「…もう話すことはない。」`, resumeOrBattle);
       return;
     }
 
     if (npc.seenFlag) G.flags[npc.seenFlag] = true;
-    runEvent(npc.event, resume);
+    runEvent(npc.event, resumeOrBattle);
   },
 
+  // ── カメラ ───────────────────────────────────────────
+  updateCamera() {
+    const TS = this.TILE;
+    const vw = this.VIEW_COLS * TS, vh = this.VIEW_ROWS * TS;
+    const mapW = this.cols() * TS, mapH = this.rows() * TS;
+    const p = this.player;
+    let cx = p.px + TS/2 - vw/2;
+    let cy = p.py + TS/2 - vh/2;
+    cx = clamp(cx, 0, Math.max(0, mapW - vw));
+    cy = clamp(cy, 0, Math.max(0, mapH - vh));
+    if (mapW < vw) cx = (mapW - vw) / 2;   // マップが狭ければ中央寄せ
+    if (mapH < vh) cy = (mapH - vh) / 2;
+    this.camera.x = cx; this.camera.y = cy;
+  },
+
+  // ── タイル描画ヘルパー ───────────────────────────────
+  drawKenney(idx, dx, dy) {
+    const img = this.sheets.kenney;
+    if (!img || !img.complete) return;
+    const c = idx % 20, r = (idx / 20) | 0;
+    this.ctx.drawImage(img, c*64, r*64, 64, 64, dx, dy, this.TILE, this.TILE);
+  },
+  drawDungeon(idx, dx, dy) {
+    const img = this.sheets.dungeon;
+    if (!img || !img.complete) return;
+    const c = idx % 12, r = (idx / 12) | 0;
+    this.ctx.drawImage(img, c*16, r*16, 16, 16, dx, dy, this.TILE, this.TILE);
+  },
+
+  // タイルタイプ → 地面/オブジェクト描画
+  drawTileType(t, dx, dy, now) {
+    const TS = this.TILE;
+    switch (t) {
+      case T.FLOOR:
+        this.drawKenney(3, dx, dy); break;
+      case T.ENCOUNTER:
+        this.drawKenney(3, dx, dy); this.drawKenney(4, dx, dy); break;
+      case T.WATER:
+        this.drawKenney(3, dx, dy); this.drawKenney(31, dx, dy); break;
+      case T.WARP:
+        this.drawKenney(8, dx, dy);  // 土（出口）
+        this.drawWarpGlow(dx, dy, now); break;
+      case T.WALL:
+      default:
+        this.drawKenney(3, dx, dy);   // 下草
+        this.drawKenney(180, dx, dy); // 木（障害物）
+        break;
+    }
+  },
+
+  drawWarpGlow(dx, dy, now) {
+    const ctx = this.ctx, TS = this.TILE;
+    const pulse = 0.3 + 0.22 * Math.sin(now / 350);
+    const cx = dx + TS/2, cy = dy + TS/2;
+    const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, TS*0.55);
+    rg.addColorStop(0, `rgba(255,240,120,${Math.min(1, pulse+0.25)})`);
+    rg.addColorStop(0.5, `rgba(255,210,40,${pulse})`);
+    rg.addColorStop(1, 'rgba(255,210,40,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(dx, dy, TS, TS);
+  },
+
+  // ── 描画 ─────────────────────────────────────────────
   render() {
     if (!this.ctx) return;
-    const ctx = this.ctx;
-    const TS  = this.TILE;
-    const md  = MAP_DATA[G.area];
-
+    const ctx = this.ctx, TS = this.TILE;
+    const md  = this.curMap();
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
     if (!md) return;
 
-    const g = md.data;
-    const dirVec = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
-    const [ddx, ddy] = dirVec[this.player.dir] || [0, 1];
-
-    // タイル描画
+    const g   = md.data;
     const now = Date.now();
-    for (let ty = 0; ty < MAP_H; ty++) {
-      for (let tx = 0; tx < MAP_W; tx++) {
-        const tile = (g[ty] && g[ty][tx] !== undefined) ? g[ty][tx] : T.WALL;
-        this.drawTile(ctx, tx*TS, ty*TS, tile);
-        if (tile === T.WARP) {
-          const pulse = 0.25 + 0.2 * Math.sin(now / 400 + tx + ty);
-          const cx = tx*TS + TS/2, cy = ty*TS + TS/2;
-          const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, TS*0.45);
-          rg.addColorStop(0, `rgba(255,240,100,${Math.min(1, pulse + 0.2)})`);
-          rg.addColorStop(0.5, `rgba(255,215,0,${pulse})`);
-          rg.addColorStop(1, 'rgba(255,215,0,0)');
-          ctx.fillStyle = rg;
-          ctx.fillRect(tx*TS, ty*TS, TS, TS);
-        }
+    const cam = this.camera;
+
+    // 可視範囲（カリング）
+    const startCol = Math.floor(cam.x / TS);
+    const endCol   = Math.ceil((cam.x + this.canvas.width)  / TS);
+    const startRow = Math.floor(cam.y / TS);
+    const endRow   = Math.ceil((cam.y + this.canvas.height) / TS);
+
+    // 地形タイル
+    for (let ry = startRow; ry <= endRow; ry++) {
+      for (let cx = startCol; cx <= endCol; cx++) {
+        const t = (g[ry] && g[ry][cx] !== undefined) ? g[ry][cx] : T.WALL;
+        const dx = Math.round(cx * TS - cam.x);
+        const dy = Math.round(ry * TS - cam.y);
+        this.drawTileType(t, dx, dy, now);
       }
     }
 
-    // NPC描画（青い光球）
+    const [ddx, ddy] = DIRV[this.player.dir] || [0, 1];
+
+    // NPC（足元揃え・カメラ補正）
     (md.npcs||[]).forEach(npc => {
-      this.drawNpcOrb(ctx, npc.x*TS, npc.y*TS, now, npc.name);
-      const adjacent = (npc.x === this.player.x+ddx && npc.y === this.player.y+ddy);
-      if (adjacent) {
-        ctx.fillStyle = 'rgba(255,255,180,0.92)';
-        ctx.fillRect(npc.x*TS+4, npc.y*TS-18, 20, 16);
+      if (npc.defeatedFlag && G.flags[npc.defeatedFlag]) return;
+      const dx = Math.round(npc.x * TS - cam.x);
+      const dy = Math.round(npc.y * TS - cam.y);
+      if (dx < -TS*2 || dx > this.canvas.width+TS || dy < -TS*3 || dy > this.canvas.height+TS) return;
+      const src = NPC_FIELD_IMAGES[npc.name];
+      const img = src ? this.fieldImgs[src] : null;
+      this.drawFieldSprite(dx, dy, img, 'down');
+      // 隣接時の「！」
+      if (npc.x === this.player.x+ddx && npc.y === this.player.y+ddy && !this.player.moving) {
+        ctx.fillStyle = 'rgba(255,255,180,0.95)';
+        ctx.fillRect(dx+TS/2-9, dy-20, 18, 16);
         ctx.fillStyle = '#222';
         ctx.font = 'bold 14px sans-serif';
-        ctx.fillText('!', npc.x*TS+9, npc.y*TS-5);
+        ctx.textAlign = 'center';
+        ctx.fillText('!', dx+TS/2, dy-7);
+        ctx.textAlign = 'left';
       }
     });
 
-    // プレイヤー描画（金色の光球）
-    this.drawPlayerOrb(ctx, this.player.x*TS, this.player.y*TS, now);
+    // プレイヤー
+    const pdx = Math.round(this.player.px - cam.x);
+    const pdy = Math.round(this.player.py - cam.y);
+    this.drawPlayer(pdx, pdy);
 
-    // ミニHUD
+    // パーティHUD
     this.renderHUD(ctx);
   },
 
-  drawTile(ctx, px, py, tileType) {
-    const TS = this.TILE;
-    if (tileType === T.WARP) return; // render()ループで処理
+  // 足元の影＋スプライト（画像はタイル幅1.3倍・足が下端）
+  drawFieldSprite(dx, dy, img, dir) {
+    const ctx = this.ctx, TS = this.TILE;
+    // 影
+    const cx = dx + TS/2;
+    const sh = ctx.createRadialGradient(cx, dy+TS-3, 0, cx, dy+TS-3, TS*0.5);
+    sh.addColorStop(0, 'rgba(0,0,0,0.4)');
+    sh.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sh;
+    ctx.beginPath();
+    ctx.ellipse(cx, dy+TS-3, TS*0.42, TS*0.14, 0, 0, Math.PI*2);
+    ctx.fill();
 
-    // 地形ごとのベースカラー
-    const baseColors = {
-      [T.FLOOR]:     '#c8a96e',
-      [T.WALL]:      '#3a2e20',
-      [T.ENCOUNTER]: '#4a6840',
-      [T.WATER]:     '#1e4870',
-    };
-    ctx.fillStyle = baseColors[tileType] || '#222';
-    ctx.fillRect(px, py, TS, TS);
-
-    // テクスチャ感を追加
-    if (tileType === T.FLOOR) {
-      // 土のランダムな粒（決定論的）
-      const seed = (px * 7 + py * 13) % 8;
-      if (seed < 3) {
-        ctx.fillStyle = 'rgba(0,0,0,0.08)';
-        ctx.fillRect(px + seed*4, py + (seed*3)%TS, 3, 2);
-      }
-      // 格子の薄い線
-      ctx.fillStyle = 'rgba(0,0,0,0.12)';
-      ctx.fillRect(px, py, TS, 1);
-      ctx.fillRect(px, py, 1, TS);
+    if (!img || !img.complete || !img.naturalWidth) {
+      ctx.fillStyle = 'rgba(150,200,255,0.85)';
+      ctx.beginPath(); ctx.arc(cx, dy+TS*0.55, TS*0.3, 0, Math.PI*2); ctx.fill();
+      return;
     }
-    if (tileType === T.WALL) {
-      // 石壁のモルタル風
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
-      ctx.fillRect(px+2, py+2, TS-4, TS*0.45);
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.fillRect(px, py+TS*0.5, TS, 1);
-      // ハイライト
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      ctx.fillRect(px, py, TS, 2);
-    }
-    if (tileType === T.ENCOUNTER) {
-      // 草の筋
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
-      for (let i = 0; i < 3; i++) {
-        const gx = px + 4 + i*9;
-        ctx.fillRect(gx, py+TS*0.3, 2, TS*0.5);
-      }
-    }
-    if (tileType === T.WATER) {
-      // 水面の輝き
-      ctx.fillStyle = 'rgba(100,180,255,0.2)';
-      ctx.fillRect(px+2, py+4, TS*0.6, 3);
-    }
+    const DW = TS * 1.35;
+    const DH = DW * (img.naturalHeight / img.naturalWidth);
+    const drawY = dy + TS - DH + 4;
+    ctx.save();
+    if (dir === 'left') { ctx.translate(cx*2, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(img, cx - DW/2, drawY, DW, DH);
+    ctx.restore();
   },
 
-  // フィールドスプライトキャッシュ
-  _fieldImgs: (() => {
-    const cache = {};
-    // プレイヤー
-    const p = new Image(); p.src = PLAYER_FIELD_IMAGE; cache['__player'] = p;
-    // NPC
-    for (const [name, src] of Object.entries(NPC_FIELD_IMAGES)) {
-      if (!cache[src]) { const i = new Image(); i.src = src; cache[src] = i; }
-    }
-    return cache;
-  })(),
-
-  // フィールドスプライト共通描画（左方向は水平反転）
-  _drawFieldSprite(ctx, px, py, img, dir, TS, labelText, labelColor) {
-    if (!img || !img.complete || !img.naturalWidth) return;
-
-    const DW = TS * 1.6;
-    const DH = DW * (img.naturalHeight / img.naturalWidth);
-    const cx = px + TS / 2;
-    const dy = py + TS - DH;   // タイル下端に足が揃う
-    const flipX = (dir === 'left');
-
-    ctx.save();
-
-    // 足元の丸影
-    const sh = ctx.createRadialGradient(cx, py+TS-3, 0, cx, py+TS-3, TS*0.55);
+  // プレイヤー（1枚絵スプライト＋歩行バウンド＋左右反転）
+  drawPlayer(dx, dy) {
+    const ctx = this.ctx, TS = this.TILE, p = this.player;
+    const cx = dx + TS/2;
+    // 歩行中の上下バウンド（移動進行度に同期した正弦）
+    const bob = p.moving ? -Math.abs(Math.sin(p.t / this.MOVE_MS * Math.PI)) * (TS * 0.12) : 0;
+    // 影
+    const sh = ctx.createRadialGradient(cx, dy+TS-3, 0, cx, dy+TS-3, TS*0.5);
     sh.addColorStop(0, 'rgba(0,0,0,0.45)');
     sh.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = sh;
     ctx.beginPath();
-    ctx.ellipse(cx, py+TS-3, TS*0.5, TS*0.16, 0, 0, Math.PI*2);
+    ctx.ellipse(cx, dy+TS-3, TS*0.42, TS*0.14, 0, 0, Math.PI*2);
     ctx.fill();
 
-    // 反転処理
-    if (flipX) {
-      ctx.translate(cx * 2, 0);
-      ctx.scale(-1, 1);
+    const img = this.playerImg;
+    if (!img || !img.complete || !img.naturalWidth) {
+      ctx.fillStyle = '#ffd54a';
+      ctx.beginPath(); ctx.arc(cx, dy+TS*0.5, TS*0.32, 0, Math.PI*2); ctx.fill();
+      return;
     }
-    ctx.drawImage(img, cx - DW/2, dy, DW, DH);
-    ctx.restore();
-
-    // 名前ラベル
-    if (labelText) this._drawLabel(ctx, cx, py + TS + 2, labelText, labelColor, TS);
-  },
-
-  drawPlayerSprite(ctx, px, py, now) {
-    const TS  = this.TILE;
-    const img = this._fieldImgs['__player'];
-    this._drawFieldSprite(ctx, px, py, img, this.player.dir, TS, null, null);
-  },
-
-  drawNpcOrb(ctx, px, py, now, npcName) {
-    const TS  = this.TILE;
-    const src = NPC_FIELD_IMAGES[npcName];
-    const img = src ? this._fieldImgs[src] : null;
-    if (img && img.complete && img.naturalWidth) {
-      this._drawFieldSprite(ctx, px, py, img, 'down', TS, null, null);
-    } else {
-      // 画像未ロード中: 小さい●で代替
-      ctx.save();
-      ctx.fillStyle = 'rgba(150,200,255,0.8)';
-      ctx.beginPath();
-      ctx.arc(px + TS/2, py + TS/2, TS*0.3, 0, Math.PI*2);
-      ctx.fill();
-      ctx.restore();
-    }
-  },
-
-  _drawLabel(ctx, cx, ly, text, color, TS) {
-    const fs = Math.round(TS * 0.42);
+    const DW = TS * 1.45;
+    const DH = DW * (img.naturalHeight / img.naturalWidth);
+    const drawY = dy + TS - DH + 4 + bob;
     ctx.save();
-    ctx.font = `bold ${fs}px serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillStyle = 'rgba(0,0,0,0.9)';
-    for (const [ox, oy] of [[-1,0],[1,0],[0,-1],[0,1]]) ctx.fillText(text, cx+ox, ly+oy);
-    ctx.fillStyle = color;
-    ctx.fillText(text, cx, ly);
+    if (p.dir === 'left') { ctx.translate(cx*2, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(img, cx - DW/2, drawY, DW, DH);
     ctx.restore();
-  },
-
-  drawPlayerOrb(ctx, px, py, now) {
-    this.drawPlayerSprite(ctx, px, py, now);
-  },
-
-  drawSprite(ctx, px, py, spriteId) {
-    const img = this.imgs[spriteId];
-    const TS  = this.TILE;
-    if (img) {
-      ctx.drawImage(img, px, py, TS, TS);
-    } else {
-      ctx.fillStyle = '#f0f';
-      ctx.fillRect(px+6, py+6, TS-12, TS-12);
-    }
   },
 
   renderHUD(ctx) {
@@ -678,14 +749,11 @@ const MapEngine = {
     ctx.strokeStyle = 'rgba(201,162,39,0.5)';
     ctx.lineWidth = 1;
     ctx.strokeRect(4, 4, 188, boxH);
-
     party.forEach((c, i) => {
       const y = 10 + i * 33;
       ctx.fillStyle = '#ffd700';
       ctx.font = 'bold 11px serif';
       ctx.fillText(`${c.name}  Lv.${c.level}`, 10, y + 11);
-
-      // HPバー
       ctx.fillStyle = '#222';
       ctx.fillRect(10, y+15, 116, 7);
       const hpRatio = c.maxHp > 0 ? c.hp/c.maxHp : 0;
@@ -694,8 +762,6 @@ const MapEngine = {
       ctx.fillStyle = '#bbb';
       ctx.font = '9px monospace';
       ctx.fillText(`HP ${c.hp}/${c.maxHp}`, 130, y+21);
-
-      // MPバー
       ctx.fillStyle = '#222';
       ctx.fillRect(10, y+24, 116, 5);
       ctx.fillStyle = '#2196f3';
@@ -705,6 +771,7 @@ const MapEngine = {
     });
   },
 };
+
 
 // ─────────────────────────────────────────────────────
 //  マップ画面
@@ -2145,9 +2212,14 @@ function selectFieldTarget(candidates, title, onSelect) {
   let html = `<div style="margin-bottom:8px;font-size:14px;color:var(--gold)">${title}</div>`;
   candidates.forEach(c => {
     const hpPct = Math.round(c.hp / c.maxHp * 100);
+    const mpPct = c.maxMp > 0 ? Math.round(c.mp / c.maxMp * 100) : 0;
     html += `<button class="ok-btn" style="display:block;width:100%;margin:4px 0;text-align:left;padding:8px 12px"
       onclick="hideOverlay('overlay-message');window._fieldTargetCb && window._fieldTargetCb('${c.defId}')">
-      ${c.emoji} ${c.name}　HP ${c.hp}/${c.maxHp} (${hpPct}%)
+      <div>${c.emoji} ${c.name}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:2px">
+        <span style="color:#ff8a8a">HP ${c.hp}/${c.maxHp} (${hpPct}%)</span>
+        <span style="margin-left:10px;color:#8ab4ff">MP ${c.mp}/${c.maxMp} (${mpPct}%)</span>
+      </div>
     </button>`;
   });
   html += `<button class="close-btn" style="margin-top:8px;width:100%" onclick="hideOverlay('overlay-message')">キャンセル</button>`;
@@ -2203,10 +2275,10 @@ function renderSkillTab(body) {
 function useSkillFromMenu(caster, skill) {
   const candidates = getActiveParty().filter(c => c.isAlive);
   if (candidates.length === 0) { showMessage('対象がいない。'); return; }
-  selectFieldTarget(candidates, `${caster.name}の「${skill.name}」\n誰に使う？`, target => {
+  selectFieldTarget(candidates, `${caster.name}の「${skill.name}」<br>誰に使う？`, target => {
     if (caster.mp < skill.mpCost) { showMessage('MPが足りない！'); return; }
     caster.mp -= skill.mpCost;
-    const healAmt = Math.floor(target.maxHp * (skill.healPct || 0));
+    const healAmt = Math.floor(target.maxHp * (skill.healPct || 0.3));
     target.hp = Math.min(target.maxHp, target.hp + healAmt);
     showMessage(`${caster.name}の${skill.name}！\n${target.name}のHPが ${healAmt} 回復した！`, () => renderMenu('skill'));
   });
