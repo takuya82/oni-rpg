@@ -12,3 +12,7 @@ p1_*.png
 map_current.png
 battle_current.png
 .playwright-mcp/
+
+# Phase2 一時画像
+dungeon_index.png
+p2_*.png

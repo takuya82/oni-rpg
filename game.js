@@ -294,6 +294,52 @@ function showLevelUpsAndThen(results, cb) {
 // ─────────────────────────────────────────────────────
 const DIRV  = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
 
+// ── エリア別タイルテーマ ──────────────────────────────
+// k=Kenney(屋外64px) / d=tiny-dungeon(石16px)。各タイルタイプの重ね描画レシピ。
+const AREA_THEME = {
+  burned_village:    'village',
+  mountain_path:     'field',
+  lake_village:      'village',
+  oni_fortress:      'dungeon',
+  mountain_ruins:    'dungeon',
+  spirit_realm_gate: 'spirit',
+  spirit_shallow:    'spirit',
+  spirit_deep:       'spirit',
+  bell_tower:        'dungeon',
+};
+// レシピ: [['k',idx] ...] を下から重ねる
+const THEMES = {
+  field: {
+    floor:   [['k',8]],
+    enc:     [['k',3],['k',4]],
+    wall:    [['k',3],['k',180]],
+    water:   [['k',3],['k',31]],
+    warpbase:[['k',8]],
+  },
+  village: {
+    floor:   [['k',3]],
+    enc:     [['k',3],['k',4]],
+    wall:    [['k',3],['k',180]],
+    water:   [['k',3],['k',31]],
+    warpbase:[['k',8]],
+  },
+  dungeon: {
+    floor:   [['d',48]],
+    enc:     [['d',49]],
+    wall:    [['d',2]],
+    water:   [['k',3],['k',31]],
+    warpbase:[['d',48]],
+  },
+  spirit: {
+    floor:   [['d',48]],
+    enc:     [['d',49]],
+    wall:    [['d',2]],
+    water:   [['k',3],['k',31]],
+    warpbase:[['d',48]],
+    tint:    'rgba(96,44,150,0.30)',
+  },
+};
+
 const MapEngine = {
   canvas:     null,
   ctx:        null,
@@ -590,24 +636,30 @@ const MapEngine = {
     this.ctx.drawImage(img, c*16, r*16, 16, 16, dx, dy, this.TILE, this.TILE);
   },
 
-  // タイルタイプ → 地面/オブジェクト描画
+  // レシピを下から重ね描画
+  drawRecipe(recipe, dx, dy) {
+    for (const [sheet, idx] of recipe) {
+      if (sheet === 'k') this.drawKenney(idx, dx, dy);
+      else               this.drawDungeon(idx, dx, dy);
+    }
+  },
+
+  // タイルタイプ → エリアテーマに沿った描画
   drawTileType(t, dx, dy, now) {
-    const TS = this.TILE;
+    const th = THEMES[this._theme] || THEMES.village;
     switch (t) {
-      case T.FLOOR:
-        this.drawKenney(3, dx, dy); break;
-      case T.ENCOUNTER:
-        this.drawKenney(3, dx, dy); this.drawKenney(4, dx, dy); break;
-      case T.WATER:
-        this.drawKenney(3, dx, dy); this.drawKenney(31, dx, dy); break;
+      case T.FLOOR:     this.drawRecipe(th.floor, dx, dy); break;
+      case T.ENCOUNTER: this.drawRecipe(th.enc,   dx, dy); break;
+      case T.WATER:     this.drawRecipe(th.water, dx, dy); break;
       case T.WARP:
-        this.drawKenney(8, dx, dy);  // 土（出口）
+        this.drawRecipe(th.warpbase, dx, dy);
         this.drawWarpGlow(dx, dy, now); break;
       case T.WALL:
-      default:
-        this.drawKenney(3, dx, dy);   // 下草
-        this.drawKenney(180, dx, dy); // 木（障害物）
-        break;
+      default:          this.drawRecipe(th.wall,  dx, dy); break;
+    }
+    if (th.tint) {
+      this.ctx.fillStyle = th.tint;
+      this.ctx.fillRect(dx, dy, this.TILE, this.TILE);
     }
   },
 
@@ -634,6 +686,7 @@ const MapEngine = {
     const g   = md.data;
     const now = Date.now();
     const cam = this.camera;
+    this._theme = AREA_THEME[G.area] || 'village';
 
     // 可視範囲（カリング）
     const startCol = Math.floor(cam.x / TS);
